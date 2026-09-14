@@ -2,8 +2,9 @@ import os, json, re, urllib.request, urllib.error
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PORT=int(os.environ.get("PORT","8000"))
-MODEL=os.environ.get("OPENAI_MODEL","gpt-5.6-luna")
-API_KEY=os.environ.get("OPENAI_API_KEY","")
+MODEL="@cf/moondream/moondream3.1-9B-A2B"
+CF_ACCOUNT_ID=os.environ.get("CLOUDFLARE_ACCOUNT_ID","")
+CF_API_TOKEN=os.environ.get("CLOUDFLARE_API_TOKEN","")
 
 HTML="""<!doctype html><html lang="ms"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SeniScan AI</title><style>
 *{box-sizing:border-box}body{margin:0;font-family:system-ui;background:#f4f6ff;color:#24294d}.app{max-width:520px;margin:auto;min-height:100vh;background:white}.hero{padding:24px 18px;background:linear-gradient(135deg,#6528d7,#168cf0);color:white;text-align:center}.hero h1{font-size:36px;margin:0}.hero p{letter-spacing:3px;font-size:11px}.main{padding:16px}.card{background:white;border:1px solid #e5e8f5;border-radius:20px;padding:16px;margin-bottom:14px;box-shadow:0 7px 20px #4250a010}.btn{width:100%;border:0;border-radius:16px;padding:14px;font-weight:800;margin-top:9px}.primary{background:linear-gradient(90deg,#6a42e8,#2488ef);color:white}.secondary{background:#eeeaff;color:#5547c8}#preview{width:100%;border-radius:18px;display:none;margin-top:12px}.result{display:none}.item{background:#f7f8ff;border:1px solid #e4e7f7;border-radius:15px;padding:12px;margin-top:9px}.item h3{margin:0 0 6px;font-size:15px}.item p{margin:5px 0;color:#646b86;font-size:13px;line-height:1.5}.tag{font-size:11px;background:#ebe8ff;color:#5748c9;border-radius:99px;padding:4px 7px;font-weight:800}.mut{color:#737b94;font-size:13px;line-height:1.5}.status{display:none;padding:10px;background:#eef2ff;border-radius:12px;margin-top:9px;color:#5059bd;font-size:13px;font-weight:700}.foot{text-align:center;padding:20px;color:#8b91a5;font-size:11px}</style></head>
@@ -38,16 +39,11 @@ def analyze(image):
         "question":PROMPT,
         "reasoning":False,
         "temperature":0.1,
-        "max_tokens":1200,
+        "max_tokens":1000,
         "stream":False
     }
     url=f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{MODEL}"
-    req=urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode(),
-        headers={"Authorization":"Bearer "+CF_API_TOKEN,"Content-Type":"application/json"},
-        method="POST"
-    )
+    req=urllib.request.Request(url,data=json.dumps(payload).encode(),headers={"Authorization":"Bearer "+CF_API_TOKEN,"Content-Type":"application/json"},method="POST")
     try:
         with urllib.request.urlopen(req,timeout=90) as r:
             data=json.loads(r.read())
@@ -58,28 +54,32 @@ def analyze(image):
         if e.code==403: raise RuntimeError("Akses Workers AI ditolak. Semak permission token dan Account ID.")
         if e.code==429: raise RuntimeError("Kuota/limit Workers AI telah dicapai. Cuba semula kemudian.")
         raise RuntimeError("Ralat Cloudflare AI: "+detail[:500])
-    except Exception as e:
-        print(f"[SeniScan] Cloudflare request error: {e}", flush=True)
-        raise
-
-    if not data.get("success", True):
-        detail=json.dumps(data.get("errors",[]),ensure_ascii=False)
-        print(f"[SeniScan] Cloudflare API error: {detail}", flush=True)
-        raise RuntimeError("Cloudflare AI gagal: "+detail[:500])
-
     result=data.get("result") or {}
     text=result.get("answer") or result.get("response") or result.get("caption") or ""
     if not text:
-        print(f"[SeniScan] Unexpected Cloudflare response keys: {list(result.keys())}", flush=True)
         raise RuntimeError("Respons Cloudflare AI tidak dapat dibaca.")
-
     text=re.sub(r"^\`\`\`(?:json)?|\`\`\`$","",str(text).strip()).strip()
-    try:
-        return json.loads(text)
+    try:return json.loads(text)
     except:
         m=re.search(r"\{.*\}",text,re.S)
-        if not m:
-            print(f"[SeniScan] Non-JSON model response: {text[:700]}", flush=True)
-            raise RuntimeError("AI berjaya melihat imej tetapi respons belum dalam format SeniScan. Cuba sekali lagi.")
+        if not m:raise RuntimeError("AI berjaya melihat imej tetapi respons belum dalam format SeniScan. Cuba sekali lagi.")
         return json.loads(m.group())
 
+class H(BaseHTTPRequestHandler):
+    def send(self,n,b,t="application/json; charset=utf-8"):
+        if isinstance(b,dict):b=json.dumps(b,ensure_ascii=False)
+        b=b.encode();self.send_response(n);self.send_header("Content-Type",t);self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
+    def do_GET(self):
+        if self.path in ("/","/index.html"):self.send(200,HTML,"text/html; charset=utf-8")
+        elif self.path=="/health":self.send(200,{"ok":True,"provider":"cloudflare","model":MODEL,"cloudflare_configured":bool(CF_ACCOUNT_ID and CF_API_TOKEN)})
+        else:self.send(404,{"error":"Tidak dijumpai"})
+    def do_POST(self):
+        if self.path!="/api/analyze":return self.send(404,{"error":"Tidak dijumpai"})
+        try:
+            n=int(self.headers.get("Content-Length","0"))
+            if n>12000000:raise ValueError("Gambar terlalu besar.")
+            d=json.loads(self.rfile.read(n));self.send(200,analyze(d.get("image","")))
+        except Exception as e:self.send(400,{"error":str(e)})
+    def log_message(self,*a):pass
+print(f"[SeniScan] Starting with Cloudflare Workers AI: {MODEL}", flush=True)
+ThreadingHTTPServer(("0.0.0.0",PORT),H).serve_forever()
