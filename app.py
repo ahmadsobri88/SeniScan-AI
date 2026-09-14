@@ -54,10 +54,19 @@ def analyze(image):
         if e.code==403: raise RuntimeError("Akses Workers AI ditolak. Semak permission token dan Account ID.")
         if e.code==429: raise RuntimeError("Kuota/limit Workers AI telah dicapai. Cuba semula kemudian.")
         raise RuntimeError("Ralat Cloudflare AI: "+detail[:500])
-    result=data.get("result") or {}
-    text=result.get("answer") or result.get("response") or result.get("caption") or ""
+    result=data.get("result")
+    print("[SeniScan] result type:", type(result).__name__, flush=True)
+    if isinstance(result, dict):
+        print("[SeniScan] result keys:", list(result.keys()), flush=True)
+        text=(result.get("answer") or result.get("response") or result.get("caption")
+              or result.get("description") or result.get("text") or "")
+    elif isinstance(result, str):
+        text=result
+    else:
+        text=""
     if not text:
-        raise RuntimeError("Respons Cloudflare AI tidak dapat dibaca.")
+        print("[SeniScan] unreadable result:", json.dumps(result, ensure_ascii=False)[:800], flush=True)
+        raise RuntimeError("Respons Cloudflare AI diterima tetapi formatnya belum dikenali.")
     text=re.sub(r"^\`\`\`(?:json)?|\`\`\`$","",str(text).strip()).strip()
     try:return json.loads(text)
     except:
