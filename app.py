@@ -260,7 +260,11 @@ def build_art_result(obs):
         for col in known:
             if re.search(r"\\b"+re.escape(col)+r"\\b",evidence_blob):
                 recovered.append({"name":col,"location":"bahagian objek yang jelas kelihatan"})
-        if recovered: vis["colors"]=recovered
+        if recovered:
+            names0=[x["name"] for x in recovered]
+            if "merah jambu" in names0:
+                recovered=[x for x in recovered if x["name"]!="merah"]
+            vis["colors"]=recovered
 
     color_ev=_join_pairs(vis.get("colors"),"name","location")
     if color_ev:
