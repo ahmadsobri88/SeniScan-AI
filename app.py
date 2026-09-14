@@ -11,13 +11,13 @@ HTML="""<!doctype html><html lang="ms"><head><meta charset="utf-8"><meta name="v
 <body><div class="app"><div class="hero"><h1>SeniScan AI</h1><p>IMBAS • KENAL • FAHAM • INGAT</p></div><main class="main">
 <div class="card"><h2>📷 Imbas Seni Sekeliling</h2><p class="mut">Ambil gambar objek di sekeliling. AI akan membantu menerangkan unsur seni dan prinsip rekaan yang benar-benar kelihatan.</p>
 <input id="file" type="file" accept="image/*" capture="environment" hidden><button class="btn primary" onclick="file.click()">📷 Scan Sekarang</button><button class="btn secondary" onclick="file.removeAttribute('capture');file.click()">🖼️ Pilih dari Galeri</button><img id="preview"><button id="go" class="btn primary" style="display:none">✦ Analisis Sekarang</button><div id="status" class="status">🔎 AI sedang menganalisis gambar...</div></div>
-<div id="result" class="result"><div class="card"><h2>🤖 Apa yang AI nampak?</h2><h3 id="obj"></h3><p id="desc" class="mut"></p><span id="conf" class="tag"></span></div><div class="card"><h2>🎨 Unsur Seni</h2><div id="els"></div></div><div class="card"><h2>⚖️ Prinsip Rekaan</h2><div id="prs"></div></div><div class="card"><h2>🧠 Ingat Mudah</h2><p id="tip" class="mut"></p><h3>📚 Nota Seni</h3><p id="note" class="mut"></p><h3>Rumusan</h3><p id="sum" class="mut"></p></div></div>
+<div id="result" class="result"><div class="card"><h2>🤖 Apa yang AI nampak?</h2><h3 id="obj"></h3><p id="desc" class="mut"></p><span id="conf" class="tag"></span></div><div class="card"><h2>🎨 Unsur Seni</h2><div id="els"></div></div><div class="card"><h2>⚖️ Prinsip Rekaan</h2><div id="prs"></div></div><div class="card"><h2>🧠 Ingat Mudah</h2><p id="tip" class="mut"></p><h3>📚 Nota Seni</h3><div id="notes"></div><h3>Rumusan</h3><p id="sum" class="mut"></p></div><div class="card"><h2>📖 Rujukan</h2><div id="refs" class="mut"></div></div></div>
 </main><div class="foot">SeniScan AI • Pembelajaran Seni Visual Berbantu AI</div></div>
 <script>
-let imageData="";const file=document.getElementById("file"),preview=document.getElementById("preview"),go=document.getElementById("go"),statusEl=document.getElementById("status"),resultEl=document.getElementById("result"),obj=document.getElementById("obj"),desc=document.getElementById("desc"),conf=document.getElementById("conf"),els=document.getElementById("els"),prs=document.getElementById("prs"),tip=document.getElementById("tip"),note=document.getElementById("note"),sum=document.getElementById("sum");
+let imageData="";const file=document.getElementById("file"),preview=document.getElementById("preview"),go=document.getElementById("go"),statusEl=document.getElementById("status"),resultEl=document.getElementById("result"),obj=document.getElementById("obj"),desc=document.getElementById("desc"),conf=document.getElementById("conf"),els=document.getElementById("els"),prs=document.getElementById("prs"),tip=document.getElementById("tip"),notes=document.getElementById("notes"),refs=document.getElementById("refs"),sum=document.getElementById("sum");
 file.onchange=()=>{const f=file.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{imageData=r.result;preview.src=imageData;preview.style.display="block";go.style.display="block"};r.readAsDataURL(f)};
 const esc=s=>String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-go.onclick=async()=>{if(!imageData)return;statusEl.style.display="block";go.disabled=true;try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image:imageData})});const d=await r.json();if(!r.ok)throw Error(d.error||"Analisis gagal");obj.textContent=d.object_name||"";desc.textContent=d.object_description||"";conf.textContent="Keyakinan: "+(d.overall_confidence||"");els.innerHTML=(d.elements||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p>'+(x.types?.length?'<p><b>Jenis/Kategori:</b> '+esc(x.types.join(", "))+'</p>':"")+(x.examples?.length?'<p><b>Contoh:</b> '+esc(x.examples.join("; "))+'</p>':"")+(x.color_details?'<p><b>Analisis warna:</b> '+esc(x.color_details)+'</p>':"")+'<p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada unsur yang cukup jelas.</p>';prs.innerHTML=(d.principles||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p><p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada prinsip yang cukup jelas.</p>';tip.textContent=d.memory_tip||"";note.textContent=d.learning_note||"";sum.textContent=d.learning_summary||"";resultEl.style.display="block";resultEl.scrollIntoView({behavior:"smooth"})}catch(e){alert(e.message)}finally{statusEl.style.display="none";go.disabled=false}};
+go.onclick=async()=>{if(!imageData)return;statusEl.style.display="block";go.disabled=true;try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image:imageData})});const d=await r.json();if(!r.ok)throw Error(d.error||"Analisis gagal");obj.textContent=d.object_name||"";desc.textContent=d.object_description||"";conf.textContent="Keyakinan: "+(d.overall_confidence||"");els.innerHTML=(d.elements||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p>'+(x.types?.length?'<p><b>Jenis/Kategori:</b> '+esc(x.types.join(", "))+'</p>':"")+(x.examples?.length?'<p><b>Contoh:</b> '+esc(x.examples.join("; "))+'</p>':"")+(x.color_details?'<p><b>Analisis warna:</b> '+esc(x.color_details)+'</p>':"")+'<p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada unsur yang cukup jelas.</p>';prs.innerHTML=(d.principles||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p><p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada prinsip yang cukup jelas.</p>';tip.textContent=d.memory_tip||"";notes.innerHTML=(d.learning_notes||[]).map(x=>'<div class="item"><h3>'+esc(x.title)+'</h3><p>'+esc(x.note)+'</p></div>').join("")||'<p class="mut">Tiada nota tambahan.</p>';refs.innerHTML=(d.references||[]).map(x=>'<p>• '+esc(x)+'</p>').join("");sum.textContent=d.learning_summary||"";resultEl.style.display="block";resultEl.scrollIntoView({behavior:"smooth"})}catch(e){alert(e.message)}finally{statusEl.style.display="none";go.disabled=false}};
 </script></body></html>"""
 
 PROMPT="""Anda ialah pemerhati visual untuk aplikasi Pendidikan Seni Visual Malaysia.
@@ -141,6 +141,28 @@ def _valid_obs(items,kind):
             out.append({"observation":s})
     return out
 
+ART_NOTES={
+"Garisan":"Garisan ialah kesan titik yang bergerak dan boleh menunjukkan arah, pergerakan, sempadan atau karakter sesuatu objek.",
+"Rupa":"Rupa ialah kawasan dua dimensi yang mempunyai panjang dan lebar. Rupa boleh bersifat geometri atau organik.",
+"Bentuk":"Bentuk mempunyai tiga dimensi, iaitu panjang, lebar dan kedalaman, serta mempunyai isi padu.",
+"Jalinan":"Jalinan merujuk sifat permukaan sesuatu objek seperti licin, kasar, berkilat atau beralur.",
+"Warna":"Warna terhasil daripada tindak balas cahaya pada objek dan boleh mewujudkan suasana, penegasan serta perbezaan visual.",
+"Ruang":"Ruang merujuk jarak atau kawasan di antara, di sekeliling, di hadapan atau di belakang objek dan boleh menghasilkan kesan kedalaman.",
+"Nilai":"Nilai ialah darjah terang dan gelap pada sesuatu warna atau objek yang membantu menunjukkan cahaya, bayang dan bentuk.",
+"Penegasan":"Penegasan menjadikan satu bahagian visual sebagai tumpuan utama melalui perbezaan saiz, warna, kedudukan atau kontras.",
+"Kontra":"Kontra ialah perbezaan ketara antara unsur seperti warna, nilai, saiz, rupa atau bentuk.",
+"Irama & Pergerakan":"Irama dan pergerakan terhasil melalui pengulangan atau susunan unsur yang mengarahkan pergerakan mata.",
+"Imbangan":"Imbangan ialah pengagihan berat visual yang mewujudkan kestabilan dalam sesuatu susunan.",
+"Kesatuan":"Kesatuan berlaku apabila unsur-unsur visual saling berkaitan dan kelihatan sebagai satu keseluruhan.",
+"Kepelbagaian":"Kepelbagaian ialah penggunaan variasi unsur visual untuk mengelakkan kebosanan dan menambah daya tarikan.",
+"Harmoni":"Harmoni berlaku apabila unsur-unsur visual kelihatan serasi, selaras dan saling melengkapi."
+}
+
+REFERENCES=[
+"Buku Teks Pendidikan Seni Visual KSSM, Kementerian Pendidikan Malaysia (rujukan konsep Unsur Seni dan Prinsip Rekaan).",
+"Ocvirk, O. G. et al. — Art Fundamentals: Theory and Practice (rujukan asas formal elements dan principles of design)."
+]
+
 def build_art_result(obs):
     if not isinstance(obs,dict):
         raise RuntimeError("Format pemerhatian AI tidak sah.")
@@ -220,8 +242,9 @@ def build_art_result(obs):
         "elements":elements,
         "principles":principles,
         "memory_tip":tip,
-        "learning_summary":"Analisis dibuat berdasarkan bukti visual pada imej. Unsur Seni ialah Garisan, Rupa, Bentuk, Jalinan, Warna, Ruang dan Nilai. Prinsip Rekaan hanya ditunjukkan apabila mempunyai bukti visual yang mencukupi.",
-        "learning_note":"Nota Seni: Garisan ialah kesan titik yang bergerak. Rupa ialah kawasan dua dimensi. Bentuk mempunyai tiga dimensi dan isi padu. Jalinan ialah sifat permukaan. Warna ialah kesan cahaya pada objek. Ruang ialah jarak atau kawasan antara objek. Nilai ialah darjah terang dan gelap. Prinsip rekaan menerangkan cara unsur-unsur seni disusun untuk menghasilkan kesan visual."
+        "learning_summary":"Analisis dibuat berdasarkan bukti visual pada imej. Unsur Seni dan Prinsip Rekaan hanya dipaparkan apabila mempunyai bukti yang mencukupi.",
+        "learning_notes":[{"title":n,"note":ART_NOTES[n]} for n in names+pnames if n in ART_NOTES],
+        "references":REFERENCES
     }
 
 def analyze(image):
