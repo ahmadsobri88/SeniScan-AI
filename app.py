@@ -20,14 +20,29 @@ const esc=s=>String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 go.onclick=async()=>{if(!imageData)return;statusEl.style.display="block";go.disabled=true;try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image:imageData})});const d=await r.json();if(!r.ok)throw Error(d.error||"Analisis gagal");obj.textContent=d.object_name||"";desc.textContent=d.object_description||"";conf.textContent="Keyakinan: "+(d.overall_confidence||"");els.innerHTML=(d.elements||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p>'+(x.types?.length?'<p><b>Jenis/Kategori:</b> '+esc(x.types.join(", "))+'</p>':"")+(x.examples?.length?'<p><b>Contoh:</b> '+esc(x.examples.join("; "))+'</p>':"")+(x.color_details?'<p><b>Analisis warna:</b> '+esc(x.color_details)+'</p>':"")+'<p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada unsur yang cukup jelas.</p>';prs.innerHTML=(d.principles||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p><p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada prinsip yang cukup jelas.</p>';tip.textContent=d.memory_tip||"";sum.textContent=d.learning_summary||"";resultEl.style.display="block";resultEl.scrollIntoView({behavior:"smooth"})}catch(e){alert(e.message)}finally{statusEl.style.display="none";go.disabled=false}};
 </script></body></html>"""
 
-PROMPT="""Anda ialah enjin pembelajaran SeniScan AI. Analisis imej dalam Bahasa Melayu untuk membantu orang awam dan pelajar memahami seni visual.
-Unsur dibenarkan: Garisan, Rupa, Bentuk, Jalinan, Warna, Ruang, Nilai.
-Prinsip dibenarkan: Harmoni, Kontra, Penegasan, Kepelbagaian, Imbangan, Kesatuan, Irama & Pergerakan.
-Hanya pilih yang mempunyai bukti visual. Jangan paksa semua kategori. Jangan beri markah.
-Untuk Warna, nyatakan warna dominan, kategori primer/sekunder/tertier jika sesuai, panas/sejuk/neutral dan hubungan komplementari/analogus/monokromatik hanya jika disokong imej.
-Untuk Jalinan nyatakan sifat permukaan; Garisan nyatakan jenis dan lokasi; Rupa geometri/organik; Bentuk kesan 3D; Ruang kedalaman/pertindihan/perspektif; Nilai terang-gelap/cahaya-bayang.
-Setiap keputusan mesti menyebut bukti yang boleh dilihat.
-Pulangkan JSON sahaja:
+PROMPT="""Anda ialah SeniScan AI untuk Pendidikan Seni Visual. Kenal pasti objek utama secara ringkas, kemudian analisis HANYA Unsur Seni dan Prinsip Rekaan yang benar-benar kelihatan. Jawab SEPENUHNYA dalam Bahasa Melayu.
+
+RUJUKAN KONSEP:
+7 Unsur Seni sahaja:
+Garisan — jenis dan lokasi garisan.
+Rupa — kawasan 2D, geometri atau organik.
+Bentuk — sifat 3D/isi padu seperti silinder, sfera, kuboid atau organik.
+Jalinan — sifat permukaan seperti licin, kasar, berkilat atau beralur.
+Warna — warna dominan; primer/asas, sekunder, tertier jika pasti; panas, sejuk, neutral; analogus, komplementari atau monokromatik hanya jika disokong imej.
+Ruang — jarak/kawasan, kedalaman, pertindihan atau perspektif.
+Nilai — darjah terang-gelap, cahaya, bayang dan perubahan ton.
+
+Prinsip Rekaan sahaja:
+Harmoni, Kontra, Penegasan, Kepelbagaian, Imbangan, Kesatuan, Irama & Pergerakan.
+
+PERATURAN WAJIB:
+Jangan keluarkan Purpose, Material, Packaging, Quality, Function, Brand atau kategori lain sebagai unsur/prinsip.
+Jangan paksa semua kategori. Pilih hanya yang mempunyai bukti visual.
+Setiap pilihan mesti menyebut bukti spesifik yang dapat dilihat pada imej.
+Jangan beri markah. Jika tidak pasti gunakan Berkemungkinan dan jangan mereka-reka.
+Gunakan istilah pendidikan seni yang mudah difahami pelajar.
+
+Pulangkan JSON SAHAJA:
 {"object_name":"","object_description":"","overall_confidence":"Jelas | Berkemungkinan | Tidak cukup jelas","elements":[{"name":"","confidence":"Jelas | Berkemungkinan","explanation":"","evidence":"","types":[],"examples":[],"color_details":""}],"principles":[{"name":"","confidence":"Jelas | Berkemungkinan","explanation":"","evidence":""}],"memory_tip":"","learning_summary":""}"""
 
 def analyze(image):
