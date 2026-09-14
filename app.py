@@ -56,8 +56,16 @@ def analyze(image):
         raise RuntimeError("Ralat Cloudflare AI: "+detail[:500])
     result=data.get("result")
     print("[SeniScan] result type:", type(result).__name__, flush=True)
-    if isinstance(result, dict):
+    # Cloudflare may wrap the model output as:
+    # result -> {result: {answer: "...", usage: {...}}}
+    # Unwrap nested result dictionaries before reading answer.
+    while isinstance(result, dict) and "result" in result and not any(
+        k in result for k in ("answer","response","caption","description","text")
+    ):
         print("[SeniScan] result keys:", list(result.keys()), flush=True)
+        result=result.get("result")
+    if isinstance(result, dict):
+        print("[SeniScan] final result keys:", list(result.keys()), flush=True)
         text=(result.get("answer") or result.get("response") or result.get("caption")
               or result.get("description") or result.get("text") or "")
     elif isinstance(result, str):
