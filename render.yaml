@@ -1,0 +1,1 @@
+services:\n  - type: web\n    name: seniscan-ai\n    runtime: python\n    plan: free\n    buildCommand: pip install -r requirements.txt\n    startCommand: python app.py\n    envVars:\n      - key: OPENAI_API_KEY\n        sync: false\n      - key: OPENAI_MODEL\n        value: gpt-5.6-luna\n
