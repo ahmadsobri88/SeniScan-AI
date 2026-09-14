@@ -162,7 +162,7 @@ def _bm(s):
       "highlight":"pantulan cahaya","highlights":"pantulan cahaya","surface":"permukaan",
       "dominant":"dominan","dominant color":"warna dominan","main color":"warna utama",
       "petal cluster":"kelompok kelopak","flower cluster":"kelompok bunga","leaf":"daun",
-      "curving":"melengkung","curved lines":"garisan melengkung","vertical lines":"garisan menegak",
+      "frog":"katak","large":"besar","round":"bulat","eyes":"mata","eye":"mata","triangular":"segi tiga","snout":"muncung","an":"sebuah","a":"sebuah","curving":"melengkung","curved lines":"garisan melengkung","vertical lines":"garisan menegak",
       "horizontal lines":"garisan mendatar","diagonal lines":"garisan diagonal","organic shapes":"rupa organik",
       "geometric shapes":"rupa geometri","organic forms":"bentuk organik","cylindrical form":"bentuk silinder"
     }
@@ -293,6 +293,15 @@ def build_art_result(obs):
             vis["forms"]=[{"type":"organik","location":"bunga dan daun yang mempunyai isi padu"}]
     if not vis["shapes"] and re.search(r"daun|dedaunan|kelopak|bunga",dl):
         vis["shapes"]=[{"type":"organik","location":"daun atau kelopak yang kelihatan"}]
+    if not vis["shapes"] and re.search(r"geometri|bulat|segi tiga|bulatan|segi empat",dl):
+        recovered_shapes=[]
+        if re.search(r"bulat|bulatan",dl):
+            recovered_shapes.append({"type":"bulatan","location":"bahagian objek yang berbentuk bulat"})
+        if re.search(r"segi tiga|triang",dl):
+            recovered_shapes.append({"type":"segi tiga","location":"bahagian objek yang berbentuk segi tiga"})
+        if not recovered_shapes and "geometri" in dl:
+            recovered_shapes.append({"type":"geometri","location":"bahagian objek yang dibina daripada rupa geometri"})
+        vis["shapes"]=recovered_shapes
     if not vis["textures"]:
         ts=[x for x in ("licin","kasar","berkilat","beralur","berbulu","berduri") if x in dl]
         if ts: vis["textures"]=[{"type":x,"location":"permukaan objek yang jelas kelihatan"} for x in ts]
@@ -383,7 +392,7 @@ def build_art_result(obs):
     desc_parts=[]
     if names: desc_parts.append("Imej menunjukkan "+(obj_name.lower() or "objek")+" dengan unsur "+", ".join(names)+".")
     if pnames: desc_parts.append("Prinsip rekaan yang dapat dikenal pasti ialah "+", ".join(pnames)+".")
-    bm_description=_bm(" ".join(desc_parts) or obs.get("object_description"))
+    bm_description=_bm(" ".join(desc_parts) or obs.get("object_description"))\n    bm_description=re.sub(r"^(sebuah|an)\\s+","",bm_description,flags=re.I)
 
     return {
         "object_name":obj_name,
