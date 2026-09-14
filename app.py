@@ -68,7 +68,13 @@ Tugas anda ialah melihat imej dan memulangkan JSON SAHAJA. Jangan tulis markdown
 
 PENTING: Periksa SETIAP kategori visual secara berasingan. Jangan kosongkan kategori hanya kerana objek bukan karya seni. Objek harian, tumbuhan, pakaian dan peralatan juga mempunyai unsur visual.
 
-Jawab semua nilai JSON dalam Bahasa Melayu.
+Jawab SEMUA nilai JSON dalam Bahasa Melayu sepenuhnya. Jangan campur perkataan Inggeris dalam object_description, type, location atau observation.
+
+PERATURAN WARNA WAJIB:
+- Periksa warna secara berasingan selepas kategori lain.
+- Jika sekurang-kurangnya satu warna dapat dilihat dengan jelas pada objek utama, "colors" TIDAK BOLEH [].
+- Senaraikan 1 hingga 5 warna paling jelas pada objek utama berserta lokasi khusus dalam Bahasa Melayu.
+- Jangan abaikan warna hanya kerana imej ialah objek harian, bunga, tumbuhan atau produk.
 
 Struktur JSON WAJIB:
 {
@@ -97,7 +103,7 @@ Panduan:
 - shapes: rupa 2D geometri atau organik yang benar-benar kelihatan. Daun dan kelopak boleh menjadi rupa organik.
 - forms: bentuk 3D seperti silinder, sfera, kubus, kon atau bentuk organik 3D.
 - textures: sifat permukaan yang BOLEH DILIHAT seperti licin, kasar, berkilat, berbulu atau beralur.
-- colors: senaraikan warna utama yang jelas kelihatan.
+- colors: WAJIB senaraikan 1–5 warna utama yang jelas kelihatan pada objek utama. Gunakan nama warna Bahasa Melayu seperti merah, jingga, kuning, hijau, biru, ungu, putih, hitam, kelabu, coklat atau merah jambu.
 - space: hanya jika kelihatan pertindihan, hadapan-belakang, jarak, ruang positif/negatif atau kedalaman.
 - values: hanya jika kelihatan terang-gelap, ton, cahaya atau bayang.
 - focal_points: hanya SATU tumpuan utama jika benar-benar dominan.
@@ -139,7 +145,7 @@ BM_MAP={
 "smooth":"licin","slightly rough":"agak kasar","rough":"kasar","glossy":"berkilat","ribbed":"beralur",
 "cylindrical":"silinder","cylinder":"silinder","circular":"bulatan","circle":"bulatan",
 "rectangular":"segi empat tepat","rectangle":"segi empat tepat","geometric":"geometri","organic":"organik",
-"blue":"biru","green":"hijau","white":"putih","black":"hitam","red":"merah","yellow":"kuning","orange":"jingga",
+"blue":"biru","green":"hijau","white":"putih","black":"hitam","red":"merah","yellow":"kuning","orange":"jingga","gold":"keemasan","golden":"keemasan","beige":"kuning air","cream":"krim","cyan":"biru sian","teal":"biru kehijauan","navy":"biru tua","lime":"hijau muda","maroon":"merah tua",
 "purple":"ungu","grey":"kelabu","gray":"kelabu","pink":"merah jambu","brown":"coklat","high":"Jelas","medium":"Berkemungkinan","low":"Tidak cukup jelas"
 }
 def _bm(s):
@@ -149,7 +155,16 @@ def _bm(s):
       "floral arrangement":"gubahan bunga","flower arrangement":"gubahan bunga","asymmetrical":"tidak simetri","asymmetric":"tidak simetri","composition":"komposisi","foliage":"dedaunan","chrysanthemum":"bunga kekwa","calla lilies":"bunga kala","pandanus":"pandan","dynamic":"dinamik","featuring":"yang menampilkan","and":"dan","with":"dengan","create":"mewujudkan","includes":"merangkumi","left side":"bahagian kiri","right side":"bahagian kanan","top":"bahagian atas","bottom":"bahagian bawah","lid":"penutup","base":"bahagian dasar","handle":"pemegang","stem":"batang","stems":"batang","branch":"ranting","branches":"ranting","petal":"kelopak","petals":"kelopak","flower":"bunga","flowers":"bunga","arrangement":"gubahan","vibrant":"terang",
       "middle left":"bahagian tengah kiri","middle right":"bahagian tengah kanan","upper left":"bahagian atas kiri","upper right":"bahagian atas kanan","lower left":"bahagian bawah kiri","lower right":"bahagian bawah kanan","extending diagonally":"memanjang secara diagonal","subtle shadows":"bayang lembut","subtle highlights":"pantulan cahaya lembut","leaves":"daun","shapes":"rupa","shape":"rupa","forms":"bentuk","form":"bentuk","lines":"garisan","line":"garisan","against":"berkontra dengan","variety of":"kepelbagaian","main body":"badan utama","body":"badan objek","label background":"latar label","background":"latar belakang",
       "text color":"warna tulisan","text":"tulisan","logo leaf":"logo daun","leaf accents":"hiasan daun",
-      "leaf graphics":"grafik daun","bottle surface":"permukaan botol","bottle":"botol","label":"label"
+      "leaf graphics":"grafik daun","bottle surface":"permukaan botol","bottle":"botol","label":"label",
+      "upper section":"bahagian atas","lower section":"bahagian bawah","centre":"tengah","center":"tengah",
+      "foreground":"bahagian hadapan","background area":"kawasan latar","behind":"di belakang","in front":"di hadapan",
+      "bright":"terang","dark":"gelap","light":"cerah","shadow":"bayang","shadows":"bayang",
+      "highlight":"pantulan cahaya","highlights":"pantulan cahaya","surface":"permukaan",
+      "dominant":"dominan","dominant color":"warna dominan","main color":"warna utama",
+      "petal cluster":"kelompok kelopak","flower cluster":"kelompok bunga","leaf":"daun",
+      "curving":"melengkung","curved lines":"garisan melengkung","vertical lines":"garisan menegak",
+      "horizontal lines":"garisan mendatar","diagonal lines":"garisan diagonal","organic shapes":"rupa organik",
+      "geometric shapes":"rupa geometri","organic forms":"bentuk organik","cylindrical form":"bentuk silinder"
     }
     for en,ms in sorted(phrase_map.items(),key=lambda x:-len(x[0])):
         s=re.sub(r"\b"+re.escape(en)+r"\b",ms,s,flags=re.I)
@@ -238,14 +253,35 @@ def build_art_result(obs):
     vis["unity"]=[x for x in vis["unity"] if re.search(r"kesatuan|bersatu|serasi|selaras|harmoni|cohes",x["observation"],re.I)]
     vis["variety"]=[x for x in vis["variety"] if re.search(r"pelbagai|kepelbagaian|variasi|berbeza|variety",x["observation"],re.I)]
     vis["colors"]=[{"name":_bm(x.get("name")),"location":_bm(x.get("location"))} for x in _list(vis.get("colors")) if isinstance(x,dict) and _text(x.get("name")) and _text(x.get("location"))]
+    # Normalisasi nama warna dan buang pendua.
+    color_syn={"oren":"jingga","orange":"jingga","pink":"merah jambu","grey":"kelabu","gray":"kelabu","purple":"ungu","brown":"coklat","navy":"biru tua","lime":"hijau muda"}
+    clean_colors=[]
+    seen=set()
+    for x in vis["colors"]:
+        nm=color_syn.get(x["name"].lower(),x["name"].lower()).strip()
+        loc=x["location"].strip() or "bahagian objek yang jelas kelihatan"
+        if nm and nm not in seen:
+            clean_colors.append({"name":nm,"location":loc});seen.add(nm)
+    vis["colors"]=clean_colors
     # Fallback bukti: jika model menghuraikan ciri dengan jelas tetapi terlupa mengisi kategori JSON,
     # pulihkan hanya kategori yang boleh disokong oleh penerangan visualnya.
     desc=_bm(obs.get("object_description"))
     dl=desc.lower()
     if not vis["colors"]:
-        known=("merah","jingga","kuning","hijau","biru","ungu","putih","hitam","kelabu","coklat","merah jambu")
-        cols=[x for x in known if re.search(r"\\b"+re.escape(x)+r"\\b",dl)]
-        if cols: vis["colors"]=[{"name":x,"location":"objek yang kelihatan"} for x in cols]
+        # Imbas keseluruhan respons model kerana ada model yang menyebut warna di bahagian lain
+        # tetapi terlupa mengisi array colors.
+        raw_blob=_bm(json.dumps(obs,ensure_ascii=False)).lower()
+        known=("merah jambu","merah","jingga","kuning","hijau","biru tua","biru","ungu","putih","hitam","kelabu","coklat","krim","keemasan")
+        cols=[]
+        for x in known:
+            if re.search(r"\\b"+re.escape(x)+r"\\b",raw_blob):
+                cols.append(x)
+        if "merah jambu" in cols and "merah" in cols:
+            cols.remove("merah")
+        if "biru tua" in cols and "biru" in cols:
+            cols.remove("biru")
+        if cols:
+            vis["colors"]=[{"name":x,"location":"bahagian objek utama yang jelas kelihatan"} for x in cols[:5]]
     if not vis["lines"]:
         ls=[x for x in ("menegak","mendatar","melengkung","beralun","diagonal","zigzag") if x in dl]
         if ls: vis["lines"]=[{"type":x,"location":"bahagian objek yang jelas kelihatan"} for x in ls]
@@ -292,12 +328,7 @@ def build_art_result(obs):
     # Warna ialah unsur asas yang penting. Jika model tidak memulangkan array colors tetapi
     # warna jelas disebut pada pemerhatian/prinsip, pulihkan nama warna yang dapat disokong.
     if not vis["colors"]:
-        evidence_blob=" ".join([
-            desc,
-            _join_obs(vis.get("contrasts")),
-            _join_obs(vis.get("variety")),
-            _join_obs(vis.get("focal_points"))
-        ]).lower()
+        evidence_blob=_bm(json.dumps(obs,ensure_ascii=False)).lower()
         known=("merah jambu","merah","jingga","kuning","hijau","biru","ungu","putih","hitam","kelabu","coklat")
         recovered=[]
         for col in known:
@@ -352,7 +383,7 @@ def build_art_result(obs):
     desc_parts=[]
     if names: desc_parts.append("Imej menunjukkan "+(obj_name.lower() or "objek")+" dengan unsur "+", ".join(names)+".")
     if pnames: desc_parts.append("Prinsip rekaan yang dapat dikenal pasti ialah "+", ".join(pnames)+".")
-    bm_description=" ".join(desc_parts) or _bm(obs.get("object_description"))
+    bm_description=_bm(" ".join(desc_parts) or obs.get("object_description"))
 
     return {
         "object_name":obj_name,
