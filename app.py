@@ -97,13 +97,13 @@ BM_MAP={
 "cylindrical":"silinder","cylinder":"silinder","circular":"bulatan","circle":"bulatan",
 "rectangular":"segi empat tepat","rectangle":"segi empat tepat","geometric":"geometri","organic":"organik",
 "blue":"biru","green":"hijau","white":"putih","black":"hitam","red":"merah","yellow":"kuning","orange":"jingga",
-"purple":"ungu","grey":"kelabu","gray":"kelabu","high":"Jelas","medium":"Berkemungkinan","low":"Tidak cukup jelas"
+"purple":"ungu","grey":"kelabu","gray":"kelabu","pink":"merah jambu","brown":"coklat","high":"Jelas","medium":"Berkemungkinan","low":"Tidak cukup jelas"
 }
 def _bm(s):
     s=_text(s)
     # Istilah lokasi/objek lazim supaya bahagian bukti kekal dalam Bahasa Melayu.
     phrase_map={
-      "left side":"bahagian kiri","right side":"bahagian kanan","top":"bahagian atas","bottom":"bahagian bawah","lid":"penutup","base":"bahagian dasar","handle":"pemegang","stem":"batang","stems":"batang","branch":"ranting","branches":"ranting","petal":"kelopak","petals":"kelopak","flower":"bunga","flowers":"bunga","arrangement":"gubahan","vibrant":"terang",
+      "floral arrangement":"gubahan bunga","flower arrangement":"gubahan bunga","asymmetrical":"tidak simetri","asymmetric":"tidak simetri","composition":"komposisi","foliage":"dedaunan","chrysanthemum":"bunga kekwa","calla lilies":"bunga kala","pandanus":"pandan","dynamic":"dinamik","featuring":"yang menampilkan","and":"dan","with":"dengan","create":"mewujudkan","includes":"merangkumi","left side":"bahagian kiri","right side":"bahagian kanan","top":"bahagian atas","bottom":"bahagian bawah","lid":"penutup","base":"bahagian dasar","handle":"pemegang","stem":"batang","stems":"batang","branch":"ranting","branches":"ranting","petal":"kelopak","petals":"kelopak","flower":"bunga","flowers":"bunga","arrangement":"gubahan","vibrant":"terang",
       "main body":"badan utama","body":"badan objek","label background":"latar label","background":"latar belakang",
       "text color":"warna tulisan","text":"tulisan","logo leaf":"logo daun","leaf accents":"hiasan daun",
       "leaf graphics":"grafik daun","bottle surface":"permukaan botol","bottle":"botol","label":"label"
@@ -208,13 +208,25 @@ def build_art_result(obs):
         if ls: vis["lines"]=[{"type":x,"location":"bahagian objek yang jelas kelihatan"} for x in ls]
     if not vis["forms"]:
         fs=[x for x in ("silinder","sfera","kubus","kon","piramid","prisma") if x in dl]
-        if fs: vis["forms"]=[{"type":x,"location":"bentuk utama objek"} for x in fs]
-    if not vis["shapes"] and re.search(r"daun|kelopak|bunga",dl):
+        if fs:
+            vis["forms"]=[{"type":x,"location":"bentuk utama objek"} for x in fs]
+        elif re.search(r"bunga|daun|dedaunan|kelopak|gubahan",dl):
+            vis["forms"]=[{"type":"organik","location":"bunga dan daun yang mempunyai isi padu"}]
+    if not vis["shapes"] and re.search(r"daun|dedaunan|kelopak|bunga",dl):
         vis["shapes"]=[{"type":"organik","location":"daun atau kelopak yang kelihatan"}]
-    if not vis["space"] and re.search(r"bertindih|pertindihan|di hadapan|di belakang|kedalaman",dl):
-        vis["space"]=[{"observation":"Pertindihan atau susunan hadapan-belakang menghasilkan kesan ruang dan kedalaman."}]
-    if not vis["values"] and re.search(r"terang.*gelap|gelap.*terang|cahaya|bayang|ton",dl):
-        vis["values"]=[{"observation":"Perbezaan cahaya, bayang atau ton menghasilkan nilai terang dan gelap pada objek."}]
+    if not vis["textures"]:
+        ts=[x for x in ("licin","kasar","berkilat","beralur","berbulu","berduri") if x in dl]
+        if ts: vis["textures"]=[{"type":x,"location":"permukaan objek yang jelas kelihatan"} for x in ts]
+    if not vis["space"] and re.search(r"bertindih|pertindihan|di hadapan|di belakang|kedalaman|gubahan|komposisi",dl):
+        vis["space"]=[{"observation":"Susunan bahagian objek yang saling berada di hadapan dan belakang menghasilkan kesan ruang dan kedalaman."}]
+    if not vis["values"] and re.search(r"terang.*gelap|gelap.*terang|cahaya|bayang|ton|berkilat",dl):
+        vis["values"]=[{"observation":"Perbezaan cahaya dan bayang pada permukaan objek menghasilkan nilai terang dan gelap."}]
+    if not vis["balance"] and re.search(r"tidak simetri|simetri|komposisi",dl):
+        vis["balance"]=[{"observation":"Susunan komposisi menunjukkan imbangan visual melalui pengagihan unsur pada keseluruhan gubahan."}]
+    if not vis["contrasts"]:
+        found_cols=[x.get("name","") for x in vis["colors"] if isinstance(x,dict)]
+        if len(set(found_cols)) >= 3:
+            vis["contrasts"]=[{"observation":"Perbezaan warna yang ketara antara bahagian objek menghasilkan kontra visual."}]
     elements=[]
     principles=[]
 
@@ -271,9 +283,17 @@ def build_art_result(obs):
     if pnames: memory.append("Prinsip yang jelas: "+", ".join(pnames)+".")
     tip=" ".join(memory) or "Fokus pada apa yang benar-benar dapat dilihat pada objek."
 
+    obj_name=_bm(obs.get("object_name"))
+    if re.search(r"gubahan|arrangement",obj_name,re.I):
+        obj_name="Gubahan bunga"
+    desc_parts=[]
+    if names: desc_parts.append("Imej menunjukkan "+(obj_name.lower() or "objek")+" dengan unsur "+", ".join(names)+".")
+    if pnames: desc_parts.append("Prinsip rekaan yang dapat dikenal pasti ialah "+", ".join(pnames)+".")
+    bm_description=" ".join(desc_parts) or _bm(obs.get("object_description"))
+
     return {
-        "object_name":_bm(obs.get("object_name")),
-        "object_description":_bm(obs.get("object_description")),
+        "object_name":obj_name,
+        "object_description":bm_description,
         "overall_confidence":_bm(obs.get("overall_confidence")) or "Berkemungkinan",
         "elements":elements,
         "principles":principles,
