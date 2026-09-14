@@ -102,6 +102,15 @@ BM_MAP={
 }
 def _bm(s):
     s=_text(s)
+    # Istilah lokasi/objek lazim supaya bahagian bukti kekal dalam Bahasa Melayu.
+    phrase_map={
+      "left side":"bahagian kiri","right side":"bahagian kanan","top":"bahagian atas","bottom":"bahagian bawah",
+      "main body":"badan utama","body":"badan objek","label background":"latar label","background":"latar belakang",
+      "text color":"warna tulisan","text":"tulisan","logo leaf":"logo daun","leaf accents":"hiasan daun",
+      "leaf graphics":"grafik daun","bottle surface":"permukaan botol","bottle":"botol","label":"label"
+    }
+    for en,ms in sorted(phrase_map.items(),key=lambda x:-len(x[0])):
+        s=re.sub(r"\b"+re.escape(en)+r"\b",ms,s,flags=re.I)
     for en,ms in sorted(BM_MAP.items(),key=lambda x:-len(x[0])):
         s=re.sub(r"\b"+re.escape(en)+r"\b",ms,s,flags=re.I)
     return s
@@ -178,6 +187,14 @@ def build_art_result(obs):
     vis["values"]=_valid_obs(vis.get("values"),"value")
     for k in ("focal_points","contrasts","repetitions","balance","unity","variety"):
         vis[k]=[{"observation":_bm(x.get("observation"))} for x in _list(vis.get(k)) if isinstance(x,dict) and _text(x.get("observation"))]
+    # Prinsip rekaan perlu lebih ketat: penegasan hanya satu fokus dominan, pengulangan mesti nyata,
+    # dan kesatuan/kepelbagaian tidak dipaparkan daripada istilah umum semata-mata.
+    if len(vis["focal_points"]) != 1:
+        vis["focal_points"]=[]
+    vis["repetitions"]=[x for x in vis["repetitions"] if re.search(r"ulang|berulang|pengulangan|repet",x["observation"],re.I)]
+    vis["balance"]=[x for x in vis["balance"] if re.search(r"seimbang|imbang|simetri|stabil|kiri.*kanan|kanan.*kiri",x["observation"],re.I)]
+    vis["unity"]=[x for x in vis["unity"] if re.search(r"kesatuan|bersatu|serasi|selaras|harmoni|cohes",x["observation"],re.I)]
+    vis["variety"]=[x for x in vis["variety"] if re.search(r"pelbagai|kepelbagaian|variasi|berbeza|variety",x["observation"],re.I)]
     vis["colors"]=[{"name":_bm(x.get("name")),"location":_bm(x.get("location"))} for x in _list(vis.get("colors")) if isinstance(x,dict) and _text(x.get("name")) and _text(x.get("location"))]
     elements=[]
     principles=[]
