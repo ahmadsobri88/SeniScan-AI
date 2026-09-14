@@ -21,16 +21,17 @@ go.onclick=async()=>{if(!imageData)return;statusEl.style.display="block";go.disa
 </script></body></html>"""
 
 PROMPT="""Anda ialah pemerhati visual untuk aplikasi Pendidikan Seni Visual Malaysia.
+Tugas anda ialah melihat imej dan memulangkan JSON SAHAJA. Jangan tulis markdown.
 
-JANGAN tentukan nama Unsur Seni atau Prinsip Rekaan. Tugas anda hanya memerhati bukti visual pada imej dan pulangkan JSON SAHAJA.
+PENTING: Periksa SETIAP kategori visual secara berasingan. Jangan kosongkan kategori hanya kerana objek bukan karya seni. Objek harian, tumbuhan, pakaian dan peralatan juga mempunyai unsur visual.
 
-Jawab dalam Bahasa Melayu. Jika sesuatu tidak jelas, gunakan senarai kosong [] dan jangan mereka-reka.
+Jawab semua nilai JSON dalam Bahasa Melayu.
 
 Struktur JSON WAJIB:
 {
   "object_name":"",
   "object_description":"",
-  "overall_confidence":"Jelas | Berkemungkinan | Tidak cukup jelas",
+  "overall_confidence":"Jelas",
   "visual":{
     "lines":[{"type":"","location":""}],
     "shapes":[{"type":"","location":""}],
@@ -48,26 +49,24 @@ Struktur JSON WAJIB:
   }
 }
 
-PERATURAN ISTILAH DAN BUKTI:
-- Gunakan Bahasa Melayu sepenuhnya pada SEMUA nilai JSON. Terjemah istilah visual: vertical=menegak, horizontal=mendatar, curved=melengkung, smooth=licin, glossy=berkilat, cylindrical=silinder, geometric=geometri, organic=organik.
-- lines.type hanya istilah garisan seperti menegak, mendatar, melengkung, beralun, zigzag, putus-putus. location mesti lokasi sebenar.
-- shapes.type hanya rupa DUA DIMENSI seperti geometri atau organik. Jangan isi "melengkung" sebagai rupa.
-- forms.type hanya bentuk TIGA DIMENSI seperti silinder, sfera, kubus, kon atau bentuk organik 3D. Jangan isi "melengkung".
-- textures.type hanya sifat permukaan seperti licin, kasar, berkilat, beralur. Tulisan yang jelas BUKAN jalinan.
-- colors.name mesti nama warna sebenar seperti biru, putih, hijau.
-- space hanya jika benar-benar ada bukti ruang/kedalaman: hadapan-belakang, pertindihan, jarak, ruang positif/negatif. "atas label" atau "bawah label" bukan ruang.
-- values hanya jika benar-benar nampak perbezaan TERANG-GELAP, ton, cahaya atau bayang. Lutsinar/transparan bukan nilai.
-- focal_points hanya bahagian yang benar-benar dominan/tumpuan.
-- contrasts mesti nyatakan dua ciri yang berbeza dengan jelas, contohnya tulisan putih dengan latar biru.
-- repetitions hanya jika unsur visual yang sama benar-benar berulang. Jangan anggap teks berulang jika hanya kelihatan sekali.
-- balance hanya jika susunan visual memberi kestabilan yang dapat dibuktikan.
-- unity hanya jika unsur kelihatan serasi/bersatu.
-- variety hanya jika terdapat variasi nyata sekurang-kurangnya dua unsur visual.
+Panduan:
+- lines: garisan menegak, mendatar, melengkung, beralun, diagonal atau zigzag yang benar-benar kelihatan.
+- shapes: rupa 2D geometri atau organik yang benar-benar kelihatan. Daun dan kelopak boleh menjadi rupa organik.
+- forms: bentuk 3D seperti silinder, sfera, kubus, kon atau bentuk organik 3D.
+- textures: sifat permukaan yang BOLEH DILIHAT seperti licin, kasar, berkilat, berbulu atau beralur.
+- colors: senaraikan warna utama yang jelas kelihatan.
+- space: hanya jika kelihatan pertindihan, hadapan-belakang, jarak, ruang positif/negatif atau kedalaman.
+- values: hanya jika kelihatan terang-gelap, ton, cahaya atau bayang.
+- focal_points: hanya SATU tumpuan utama jika benar-benar dominan.
+- contrasts: nyatakan perbezaan visual yang jelas antara dua unsur.
+- repetitions: hanya pengulangan visual yang nyata.
+- balance, unity, variety: isi hanya jika ada bukti visual yang jelas.
 
-Jangan paksa semua unsur atau prinsip muncul. Senarai kosong [] adalah jawapan yang BETUL apabila bukti tidak mencukupi.
-Jangan masukkan fungsi, tujuan, kualiti, kandungan atau maklumat pemasaran produk sebagai ciri seni. Nama jenama/tulisan hanya boleh disebut sebagai lokasi/bukti visual.
+Contoh bunga: ranting melengkung -> lines; daun/kelopak organik -> shapes; kelompok bunga 3D -> forms; permukaan daun/kelopak -> textures; jingga/hijau/putih -> colors; bunga bertindih -> space; cahaya/bayang pada kelopak -> values.
+Contoh botol: kontur melengkung -> lines; grafik label -> shapes; badan silinder -> forms; permukaan licin -> textures; warna label -> colors.
+
+Jangan gunakan fungsi, tujuan, jenama, kandungan atau pemasaran produk sebagai unsur seni. Jika bukti kategori memang tidak kelihatan, gunakan [].
 """
-
 def _list(v):
     return v if isinstance(v,list) else []
 
@@ -104,7 +103,7 @@ def _bm(s):
     s=_text(s)
     # Istilah lokasi/objek lazim supaya bahagian bukti kekal dalam Bahasa Melayu.
     phrase_map={
-      "left side":"bahagian kiri","right side":"bahagian kanan","top":"bahagian atas","bottom":"bahagian bawah",
+      "left side":"bahagian kiri","right side":"bahagian kanan","top":"bahagian atas","bottom":"bahagian bawah","lid":"penutup","base":"bahagian dasar","handle":"pemegang","stem":"batang","stems":"batang","branch":"ranting","branches":"ranting","petal":"kelopak","petals":"kelopak","flower":"bunga","flowers":"bunga","arrangement":"gubahan","vibrant":"terang",
       "main body":"badan utama","body":"badan objek","label background":"latar label","background":"latar belakang",
       "text color":"warna tulisan","text":"tulisan","logo leaf":"logo daun","leaf accents":"hiasan daun",
       "leaf graphics":"grafik daun","bottle surface":"permukaan botol","bottle":"botol","label":"label"
@@ -196,6 +195,26 @@ def build_art_result(obs):
     vis["unity"]=[x for x in vis["unity"] if re.search(r"kesatuan|bersatu|serasi|selaras|harmoni|cohes",x["observation"],re.I)]
     vis["variety"]=[x for x in vis["variety"] if re.search(r"pelbagai|kepelbagaian|variasi|berbeza|variety",x["observation"],re.I)]
     vis["colors"]=[{"name":_bm(x.get("name")),"location":_bm(x.get("location"))} for x in _list(vis.get("colors")) if isinstance(x,dict) and _text(x.get("name")) and _text(x.get("location"))]
+    # Fallback bukti: jika model menghuraikan ciri dengan jelas tetapi terlupa mengisi kategori JSON,
+    # pulihkan hanya kategori yang boleh disokong oleh penerangan visualnya.
+    desc=_bm(obs.get("object_description"))
+    dl=desc.lower()
+    if not vis["colors"]:
+        known=("merah","jingga","kuning","hijau","biru","ungu","putih","hitam","kelabu","coklat","merah jambu")
+        cols=[x for x in known if re.search(r"\\b"+re.escape(x)+r"\\b",dl)]
+        if cols: vis["colors"]=[{"name":x,"location":"objek yang kelihatan"} for x in cols]
+    if not vis["lines"]:
+        ls=[x for x in ("menegak","mendatar","melengkung","beralun","diagonal","zigzag") if x in dl]
+        if ls: vis["lines"]=[{"type":x,"location":"bahagian objek yang jelas kelihatan"} for x in ls]
+    if not vis["forms"]:
+        fs=[x for x in ("silinder","sfera","kubus","kon","piramid","prisma") if x in dl]
+        if fs: vis["forms"]=[{"type":x,"location":"bentuk utama objek"} for x in fs]
+    if not vis["shapes"] and re.search(r"daun|kelopak|bunga",dl):
+        vis["shapes"]=[{"type":"organik","location":"daun atau kelopak yang kelihatan"}]
+    if not vis["space"] and re.search(r"bertindih|pertindihan|di hadapan|di belakang|kedalaman",dl):
+        vis["space"]=[{"observation":"Pertindihan atau susunan hadapan-belakang menghasilkan kesan ruang dan kedalaman."}]
+    if not vis["values"] and re.search(r"terang.*gelap|gelap.*terang|cahaya|bayang|ton",dl):
+        vis["values"]=[{"observation":"Perbezaan cahaya, bayang atau ton menghasilkan nilai terang dan gelap pada objek."}]
     elements=[]
     principles=[]
 
