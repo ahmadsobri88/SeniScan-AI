@@ -11,13 +11,13 @@ HTML="""<!doctype html><html lang="ms"><head><meta charset="utf-8"><meta name="v
 <body><div class="app"><div class="hero"><h1>SeniScan AI</h1><p>IMBAS • KENAL • FAHAM • INGAT</p></div><main class="main">
 <div class="card"><h2>📷 Imbas Seni Sekeliling</h2><p class="mut">Ambil gambar objek di sekeliling. AI akan membantu menerangkan unsur seni dan prinsip rekaan yang benar-benar kelihatan.</p>
 <input id="file" type="file" accept="image/*" capture="environment" hidden><button class="btn primary" onclick="file.click()">📷 Scan Sekarang</button><button class="btn secondary" onclick="file.removeAttribute('capture');file.click()">🖼️ Pilih dari Galeri</button><img id="preview"><button id="go" class="btn primary" style="display:none">✦ Analisis Sekarang</button><div id="status" class="status">🔎 AI sedang menganalisis gambar...</div></div>
-<div id="result" class="result"><div class="card"><h2>🤖 Apa yang AI nampak?</h2><h3 id="obj"></h3><p id="desc" class="mut"></p><span id="conf" class="tag"></span></div><div class="card"><h2>🎨 Unsur Seni</h2><div id="els"></div></div><div class="card"><h2>⚖️ Prinsip Rekaan</h2><div id="prs"></div></div><div class="card"><h2>🧠 Ingat Mudah</h2><p id="tip" class="mut"></p><h3>Rumusan</h3><p id="sum" class="mut"></p></div></div>
+<div id="result" class="result"><div class="card"><h2>🤖 Apa yang AI nampak?</h2><h3 id="obj"></h3><p id="desc" class="mut"></p><span id="conf" class="tag"></span></div><div class="card"><h2>🎨 Unsur Seni</h2><div id="els"></div></div><div class="card"><h2>⚖️ Prinsip Rekaan</h2><div id="prs"></div></div><div class="card"><h2>🧠 Ingat Mudah</h2><p id="tip" class="mut"></p><h3>📚 Nota Seni</h3><p id="note" class="mut"></p><h3>Rumusan</h3><p id="sum" class="mut"></p></div></div>
 </main><div class="foot">SeniScan AI • Pembelajaran Seni Visual Berbantu AI</div></div>
 <script>
-let imageData="";const file=document.getElementById("file"),preview=document.getElementById("preview"),go=document.getElementById("go"),statusEl=document.getElementById("status"),resultEl=document.getElementById("result"),obj=document.getElementById("obj"),desc=document.getElementById("desc"),conf=document.getElementById("conf"),els=document.getElementById("els"),prs=document.getElementById("prs"),tip=document.getElementById("tip"),sum=document.getElementById("sum");
+let imageData="";const file=document.getElementById("file"),preview=document.getElementById("preview"),go=document.getElementById("go"),statusEl=document.getElementById("status"),resultEl=document.getElementById("result"),obj=document.getElementById("obj"),desc=document.getElementById("desc"),conf=document.getElementById("conf"),els=document.getElementById("els"),prs=document.getElementById("prs"),tip=document.getElementById("tip"),note=document.getElementById("note"),sum=document.getElementById("sum");
 file.onchange=()=>{const f=file.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{imageData=r.result;preview.src=imageData;preview.style.display="block";go.style.display="block"};r.readAsDataURL(f)};
 const esc=s=>String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-go.onclick=async()=>{if(!imageData)return;statusEl.style.display="block";go.disabled=true;try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image:imageData})});const d=await r.json();if(!r.ok)throw Error(d.error||"Analisis gagal");obj.textContent=d.object_name||"";desc.textContent=d.object_description||"";conf.textContent="Keyakinan: "+(d.overall_confidence||"");els.innerHTML=(d.elements||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p>'+(x.types?.length?'<p><b>Jenis/Kategori:</b> '+esc(x.types.join(", "))+'</p>':"")+(x.examples?.length?'<p><b>Contoh:</b> '+esc(x.examples.join("; "))+'</p>':"")+(x.color_details?'<p><b>Analisis warna:</b> '+esc(x.color_details)+'</p>':"")+'<p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada unsur yang cukup jelas.</p>';prs.innerHTML=(d.principles||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p><p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada prinsip yang cukup jelas.</p>';tip.textContent=d.memory_tip||"";sum.textContent=d.learning_summary||"";resultEl.style.display="block";resultEl.scrollIntoView({behavior:"smooth"})}catch(e){alert(e.message)}finally{statusEl.style.display="none";go.disabled=false}};
+go.onclick=async()=>{if(!imageData)return;statusEl.style.display="block";go.disabled=true;try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image:imageData})});const d=await r.json();if(!r.ok)throw Error(d.error||"Analisis gagal");obj.textContent=d.object_name||"";desc.textContent=d.object_description||"";conf.textContent="Keyakinan: "+(d.overall_confidence||"");els.innerHTML=(d.elements||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p>'+(x.types?.length?'<p><b>Jenis/Kategori:</b> '+esc(x.types.join(", "))+'</p>':"")+(x.examples?.length?'<p><b>Contoh:</b> '+esc(x.examples.join("; "))+'</p>':"")+(x.color_details?'<p><b>Analisis warna:</b> '+esc(x.color_details)+'</p>':"")+'<p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada unsur yang cukup jelas.</p>';prs.innerHTML=(d.principles||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p><p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada prinsip yang cukup jelas.</p>';tip.textContent=d.memory_tip||"";note.textContent=d.learning_note||"";sum.textContent=d.learning_summary||"";resultEl.style.display="block";resultEl.scrollIntoView({behavior:"smooth"})}catch(e){alert(e.message)}finally{statusEl.style.display="none";go.disabled=false}};
 </script></body></html>"""
 
 PROMPT="""Anda ialah pemerhati visual untuk aplikasi Pendidikan Seni Visual Malaysia.
@@ -48,19 +48,24 @@ Struktur JSON WAJIB:
   }
 }
 
-Contoh cara memerhati:
-- lines: garisan melengkung pada kontur botol atau label
-- forms: bentuk silinder pada badan botol
-- textures: permukaan plastik licin atau berkilat
-- colors: biru pada label, putih pada tulisan
-- focal_points: tulisan besar atau warna dominan yang menarik perhatian
-- contrasts: tulisan putih berbeza jelas dengan latar biru
-- repetitions: corak/garisan berulang
-- balance: susunan visual kelihatan seimbang
-- unity: warna/bentuk kelihatan serasi
-- variety: terdapat variasi warna, rupa atau bentuk
+PERATURAN ISTILAH DAN BUKTI:
+- Gunakan Bahasa Melayu sepenuhnya pada SEMUA nilai JSON. Terjemah istilah visual: vertical=menegak, horizontal=mendatar, curved=melengkung, smooth=licin, glossy=berkilat, cylindrical=silinder, geometric=geometri, organic=organik.
+- lines.type hanya istilah garisan seperti menegak, mendatar, melengkung, beralun, zigzag, putus-putus. location mesti lokasi sebenar.
+- shapes.type hanya rupa DUA DIMENSI seperti geometri atau organik. Jangan isi "melengkung" sebagai rupa.
+- forms.type hanya bentuk TIGA DIMENSI seperti silinder, sfera, kubus, kon atau bentuk organik 3D. Jangan isi "melengkung".
+- textures.type hanya sifat permukaan seperti licin, kasar, berkilat, beralur. Tulisan yang jelas BUKAN jalinan.
+- colors.name mesti nama warna sebenar seperti biru, putih, hijau.
+- space hanya jika benar-benar ada bukti ruang/kedalaman: hadapan-belakang, pertindihan, jarak, ruang positif/negatif. "atas label" atau "bawah label" bukan ruang.
+- values hanya jika benar-benar nampak perbezaan TERANG-GELAP, ton, cahaya atau bayang. Lutsinar/transparan bukan nilai.
+- focal_points hanya bahagian yang benar-benar dominan/tumpuan.
+- contrasts mesti nyatakan dua ciri yang berbeza dengan jelas, contohnya tulisan putih dengan latar biru.
+- repetitions hanya jika unsur visual yang sama benar-benar berulang. Jangan anggap teks berulang jika hanya kelihatan sekali.
+- balance hanya jika susunan visual memberi kestabilan yang dapat dibuktikan.
+- unity hanya jika unsur kelihatan serasi/bersatu.
+- variety hanya jika terdapat variasi nyata sekurang-kurangnya dua unsur visual.
 
-Jangan masukkan maklumat pemasaran seperti fungsi, tujuan, kualiti, jenama atau kandungan produk sebagai ciri seni kecuali ia benar-benar bukti visual seperti tulisan pada label.
+Jangan paksa semua unsur atau prinsip muncul. Senarai kosong [] adalah jawapan yang BETUL apabila bukti tidak mencukupi.
+Jangan masukkan fungsi, tujuan, kualiti, kandungan atau maklumat pemasaran produk sebagai ciri seni. Nama jenama/tulisan hanya boleh disebut sebagai lokasi/bukti visual.
 """
 
 def _list(v):
@@ -155,7 +160,8 @@ def build_art_result(obs):
         "elements":elements,
         "principles":principles,
         "memory_tip":tip,
-        "learning_summary":"Analisis dibuat berdasarkan bukti visual pada imej, bukan fungsi atau maklumat produk."
+        "learning_summary":"Analisis dibuat berdasarkan bukti visual pada imej. Unsur Seni ialah Garisan, Rupa, Bentuk, Jalinan, Warna, Ruang dan Nilai. Prinsip Rekaan hanya ditunjukkan apabila mempunyai bukti visual yang mencukupi.",
+        "learning_note":"Nota Seni: Garisan ialah kesan titik yang bergerak. Rupa ialah kawasan dua dimensi. Bentuk mempunyai tiga dimensi dan isi padu. Jalinan ialah sifat permukaan. Warna ialah kesan cahaya pada objek. Ruang ialah jarak atau kawasan antara objek. Nilai ialah darjah terang dan gelap. Prinsip rekaan menerangkan cara unsur-unsur seni disusun untuk menghasilkan kesan visual."
     }
 
 def analyze(image):
