@@ -31,11 +31,15 @@ Pulangkan JSON sahaja:
 
 def analyze(image):
     if not API_KEY: raise RuntimeError("OPENAI_API_KEY belum ditetapkan pada server.")
-    payload={"model":MODEL,"input":[{"role":"user","content":[{"type":"input_text","text":PROMPT},{"type":"input_image","image_url":image}]}],"max_output_tokens":2500}
+    payload={"model":MODEL,"input":[{"role":"user","content":[{"type":"input_text","text":PROMPT},{"type":"input_image","image_url":image}]}],"max_output_tokens":2500,"reasoning":{"effort":"low"}}
     req=urllib.request.Request("https://api.openai.com/v1/responses",data=json.dumps(payload).encode(),headers={"Authorization":"Bearer "+API_KEY,"Content-Type":"application/json"},method="POST")
     try:
         with urllib.request.urlopen(req,timeout=90) as r: data=json.loads(r.read())
-    except urllib.error.HTTPError as e: raise RuntimeError("Ralat API: "+e.read().decode(errors="replace")[:700])
+    except urllib.error.HTTPError as e:
+        detail=e.read().decode(errors="replace")
+        if e.code==429: raise RuntimeError("API belum mempunyai kredit/billing aktif atau had penggunaan telah dicapai.")
+        if e.code==401: raise RuntimeError("API key tidak sah. Semak OPENAI_API_KEY di Render.")
+        raise RuntimeError("Ralat API: "+detail[:700])
     text="\n".join(c.get("text","") for o in data.get("output",[]) for c in o.get("content",[]) if c.get("type") in ("output_text","text"))
     text=re.sub(r"^\`\`\`(?:json)?|\`\`\`$","",text.strip()).strip()
     try:return json.loads(text)
