@@ -30,38 +30,56 @@ Pulangkan JSON sahaja:
 {"object_name":"","object_description":"","overall_confidence":"Jelas | Berkemungkinan | Tidak cukup jelas","elements":[{"name":"","confidence":"Jelas | Berkemungkinan","explanation":"","evidence":"","types":[],"examples":[],"color_details":""}],"principles":[{"name":"","confidence":"Jelas | Berkemungkinan","explanation":"","evidence":""}],"memory_tip":"","learning_summary":""}"""
 
 def analyze(image):
-    if not API_KEY: raise RuntimeError("OPENAI_API_KEY belum ditetapkan pada server.")
-    payload={"model":MODEL,"input":[{"role":"user","content":[{"type":"input_text","text":PROMPT},{"type":"input_image","image_url":image}]}],"max_output_tokens":2500,"reasoning":{"effort":"low"}}
-    req=urllib.request.Request("https://api.openai.com/v1/responses",data=json.dumps(payload).encode(),headers={"Authorization":"Bearer "+API_KEY,"Content-Type":"application/json"},method="POST")
+    if not CF_ACCOUNT_ID or not CF_API_TOKEN:
+        raise RuntimeError("Cloudflare belum dikonfigurasi. Semak CLOUDFLARE_ACCOUNT_ID dan CLOUDFLARE_API_TOKEN di Render.")
+    payload={
+        "task":"query",
+        "image":image,
+        "question":PROMPT,
+        "reasoning":False,
+        "temperature":0.1,
+        "max_tokens":1200,
+        "stream":False
+    }
+    url=f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{MODEL}"
+    req=urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode(),
+        headers={"Authorization":"Bearer "+CF_API_TOKEN,"Content-Type":"application/json"},
+        method="POST"
+    )
     try:
-        with urllib.request.urlopen(req,timeout=90) as r: data=json.loads(r.read())
+        with urllib.request.urlopen(req,timeout=90) as r:
+            data=json.loads(r.read())
     except urllib.error.HTTPError as e:
         detail=e.read().decode(errors="replace")
-        if e.code==429: raise RuntimeError("API belum mempunyai kredit/billing aktif atau had penggunaan telah dicapai.")
-        if e.code==401: raise RuntimeError("API key tidak sah. Semak OPENAI_API_KEY di Render.")
-        raise RuntimeError("Ralat API: "+detail[:700])
-    text="\n".join(c.get("text","") for o in data.get("output",[]) for c in o.get("content",[]) if c.get("type") in ("output_text","text"))
-    text=re.sub(r"^\`\`\`(?:json)?|\`\`\`$","",text.strip()).strip()
-    try:return json.loads(text)
+        print(f"[SeniScan] Cloudflare HTTP {e.code}: {detail[:500]}", flush=True)
+        if e.code==401: raise RuntimeError("Token Cloudflare tidak sah atau permission Workers AI tidak mencukupi.")
+        if e.code==403: raise RuntimeError("Akses Workers AI ditolak. Semak permission token dan Account ID.")
+        if e.code==429: raise RuntimeError("Kuota/limit Workers AI telah dicapai. Cuba semula kemudian.")
+        raise RuntimeError("Ralat Cloudflare AI: "+detail[:500])
+    except Exception as e:
+        print(f"[SeniScan] Cloudflare request error: {e}", flush=True)
+        raise
+
+    if not data.get("success", True):
+        detail=json.dumps(data.get("errors",[]),ensure_ascii=False)
+        print(f"[SeniScan] Cloudflare API error: {detail}", flush=True)
+        raise RuntimeError("Cloudflare AI gagal: "+detail[:500])
+
+    result=data.get("result") or {}
+    text=result.get("answer") or result.get("response") or result.get("caption") or ""
+    if not text:
+        print(f"[SeniScan] Unexpected Cloudflare response keys: {list(result.keys())}", flush=True)
+        raise RuntimeError("Respons Cloudflare AI tidak dapat dibaca.")
+
+    text=re.sub(r"^\`\`\`(?:json)?|\`\`\`$","",str(text).strip()).strip()
+    try:
+        return json.loads(text)
     except:
         m=re.search(r"\{.*\}",text,re.S)
-        if not m:raise RuntimeError("Respons AI tidak dapat dibaca.")
+        if not m:
+            print(f"[SeniScan] Non-JSON model response: {text[:700]}", flush=True)
+            raise RuntimeError("AI berjaya melihat imej tetapi respons belum dalam format SeniScan. Cuba sekali lagi.")
         return json.loads(m.group())
 
-class H(BaseHTTPRequestHandler):
-    def send(self,n,b,t="application/json; charset=utf-8"):
-        if isinstance(b,dict):b=json.dumps(b,ensure_ascii=False)
-        b=b.encode();self.send_response(n);self.send_header("Content-Type",t);self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
-    def do_GET(self):
-        if self.path in ("/","/index.html"):self.send(200,HTML,"text/html; charset=utf-8")
-        elif self.path=="/health":self.send(200,{"ok":True,"model":MODEL,"api_key_configured":bool(API_KEY)})
-        else:self.send(404,{"error":"Tidak dijumpai"})
-    def do_POST(self):
-        if self.path!="/api/analyze":return self.send(404,{"error":"Tidak dijumpai"})
-        try:
-            n=int(self.headers.get("Content-Length","0"))
-            if n>12000000:raise ValueError("Gambar terlalu besar.")
-            d=json.loads(self.rfile.read(n));self.send(200,analyze(d.get("image","")))
-        except Exception as e:self.send(400,{"error":str(e)})
-    def log_message(self,*a):pass
-ThreadingHTTPServer(("0.0.0.0",PORT),H).serve_forever()
