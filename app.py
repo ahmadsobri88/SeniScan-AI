@@ -43,7 +43,24 @@ Jangan beri markah. Jika tidak pasti gunakan Berkemungkinan dan jangan mereka-re
 Gunakan istilah pendidikan seni yang mudah difahami pelajar.
 
 Pulangkan JSON SAHAJA:
-{"object_name":"","object_description":"","overall_confidence":"Jelas | Berkemungkinan | Tidak cukup jelas","elements":[{"name":"","confidence":"Jelas | Berkemungkinan","explanation":"","evidence":"","types":[],"examples":[],"color_details":""}],"principles":[{"name":"","confidence":"Jelas | Berkemungkinan","explanation":"","evidence":""}],"memory_tip":"","learning_summary":""}"""
+{"object_name":"","object_description":"","overall_confidence":"Jelas | Berkemungkinan | Tidak cukup jelas","elements":[{"name":"Garisan","confidence":"Jelas | Berkemungkinan","explanation":"","evidence":"","types":[],"examples":[],"color_details":""}],"principles":[{"name":"Harmoni","confidence":"Jelas | Berkemungkinan","explanation":"","evidence":""}],"memory_tip":"","learning_summary":""}"""
+
+ALLOWED_ELEMENTS={"Garisan","Rupa","Bentuk","Jalinan","Warna","Ruang","Nilai"}
+ALLOWED_PRINCIPLES={"Harmoni","Kontra","Penegasan","Kepelbagaian","Imbangan","Kesatuan","Irama & Pergerakan"}
+
+def clean_art_result(d):
+    if not isinstance(d,dict): raise RuntimeError("Format analisis AI tidak sah.")
+    def norm(items,allowed):
+        out=[]
+        for x in items if isinstance(items,list) else []:
+            if not isinstance(x,dict): continue
+            name=str(x.get("name","")).strip()
+            if name not in allowed: continue
+            out.append(x)
+        return out
+    d["elements"]=norm(d.get("elements",[]),ALLOWED_ELEMENTS)
+    d["principles"]=norm(d.get("principles",[]),ALLOWED_PRINCIPLES)
+    return d
 
 def analyze(image):
     if not CF_ACCOUNT_ID or not CF_API_TOKEN:
@@ -91,11 +108,11 @@ def analyze(image):
         print("[SeniScan] unreadable result:", json.dumps(result, ensure_ascii=False)[:800], flush=True)
         raise RuntimeError("Respons Cloudflare AI diterima tetapi formatnya belum dikenali.")
     text=re.sub(r"^\`\`\`(?:json)?|\`\`\`$","",str(text).strip()).strip()
-    try:return json.loads(text)
+    try:return clean_art_result(json.loads(text))
     except:
         m=re.search(r"\{.*\}",text,re.S)
         if not m:raise RuntimeError("AI berjaya melihat imej tetapi respons belum dalam format SeniScan. Cuba sekali lagi.")
-        return json.loads(m.group())
+        return clean_art_result(json.loads(m.group()))
 
 class H(BaseHTTPRequestHandler):
     def send(self,n,b,t="application/json; charset=utf-8"):
