@@ -392,7 +392,8 @@ def build_art_result(obs):
     desc_parts=[]
     if names: desc_parts.append("Imej menunjukkan "+(obj_name.lower() or "objek")+" dengan unsur "+", ".join(names)+".")
     if pnames: desc_parts.append("Prinsip rekaan yang dapat dikenal pasti ialah "+", ".join(pnames)+".")
-    bm_description=_bm(" ".join(desc_parts) or obs.get("object_description"))\n    bm_description=re.sub(r"^(sebuah|an)\\s+","",bm_description,flags=re.I)
+    bm_description=_bm(" ".join(desc_parts) or obs.get("object_description"))
+    bm_description=re.sub(r"^(sebuah|an)\s+","",bm_description,flags=re.I)
 
     return {
         "object_name":obj_name,
