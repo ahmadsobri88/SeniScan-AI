@@ -274,7 +274,7 @@ def build_art_result(obs):
         known=("merah jambu","merah","jingga","kuning","hijau","biru tua","biru","ungu","putih","hitam","kelabu","coklat","krim","keemasan")
         cols=[]
         for x in known:
-            if re.search(r"\\b"+re.escape(x)+r"\\b",raw_blob):
+            if re.search(r"\b"+re.escape(x)+r"\b",raw_blob):
                 cols.append(x)
         if "merah jambu" in cols and "merah" in cols:
             cols.remove("merah")
@@ -302,6 +302,11 @@ def build_art_result(obs):
         if not recovered_shapes and "geometri" in dl:
             recovered_shapes.append({"type":"geometri","location":"bahagian objek yang dibina daripada rupa geometri"})
         vis["shapes"]=recovered_shapes
+    if not vis["lines"] and ("geometri" in dl or len(vis["shapes"]) >= 2):
+        vis["lines"]=[
+            {"type":"diagonal","location":"sempadan antara rupa geometri"},
+            {"type":"melengkung","location":"kontur pada bahagian objek yang berbentuk bulat"}
+        ]
     if not vis["textures"]:
         ts=[x for x in ("licin","kasar","berkilat","beralur","berbulu","berduri") if x in dl]
         if ts: vis["textures"]=[{"type":x,"location":"permukaan objek yang jelas kelihatan"} for x in ts]
@@ -313,7 +318,7 @@ def build_art_result(obs):
         vis["balance"]=[{"observation":"Susunan komposisi menunjukkan imbangan visual melalui pengagihan unsur pada keseluruhan gubahan."}]
     if not vis["contrasts"]:
         found_cols=[x.get("name","") for x in vis["colors"] if isinstance(x,dict)]
-        if len(set(found_cols)) >= 3:
+        if len(set(found_cols)) >= 2:
             vis["contrasts"]=[{"observation":"Perbezaan warna yang ketara antara bahagian objek menghasilkan kontra visual."}]
     elements=[]
     principles=[]
@@ -416,7 +421,7 @@ def analyze(image):
         "question":PROMPT,
         "reasoning":False,
         "temperature":0,
-        "max_tokens":1200,
+        "max_tokens":1800,
         "stream":False
     }
     url=f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{MODEL}"
