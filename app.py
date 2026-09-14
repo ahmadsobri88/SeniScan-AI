@@ -104,7 +104,7 @@ def _bm(s):
     # Istilah lokasi/objek lazim supaya bahagian bukti kekal dalam Bahasa Melayu.
     phrase_map={
       "floral arrangement":"gubahan bunga","flower arrangement":"gubahan bunga","asymmetrical":"tidak simetri","asymmetric":"tidak simetri","composition":"komposisi","foliage":"dedaunan","chrysanthemum":"bunga kekwa","calla lilies":"bunga kala","pandanus":"pandan","dynamic":"dinamik","featuring":"yang menampilkan","and":"dan","with":"dengan","create":"mewujudkan","includes":"merangkumi","left side":"bahagian kiri","right side":"bahagian kanan","top":"bahagian atas","bottom":"bahagian bawah","lid":"penutup","base":"bahagian dasar","handle":"pemegang","stem":"batang","stems":"batang","branch":"ranting","branches":"ranting","petal":"kelopak","petals":"kelopak","flower":"bunga","flowers":"bunga","arrangement":"gubahan","vibrant":"terang",
-      "main body":"badan utama","body":"badan objek","label background":"latar label","background":"latar belakang",
+      "middle left":"bahagian tengah kiri","middle right":"bahagian tengah kanan","upper left":"bahagian atas kiri","upper right":"bahagian atas kanan","lower left":"bahagian bawah kiri","lower right":"bahagian bawah kanan","extending diagonally":"memanjang secara diagonal","subtle shadows":"bayang lembut","subtle highlights":"pantulan cahaya lembut","leaves":"daun","shapes":"rupa","shape":"rupa","forms":"bentuk","form":"bentuk","lines":"garisan","line":"garisan","against":"berkontra dengan","variety of":"kepelbagaian","main body":"badan utama","body":"badan objek","label background":"latar label","background":"latar belakang",
       "text color":"warna tulisan","text":"tulisan","logo leaf":"logo daun","leaf accents":"hiasan daun",
       "leaf graphics":"grafik daun","bottle surface":"permukaan botol","bottle":"botol","label":"label"
     }
@@ -245,6 +245,22 @@ def build_art_result(obs):
     tex_ev=_join_pairs(vis.get("textures"),"type","location")
     if tex_ev:
         elements.append({"name":"Jalinan","confidence":"Jelas","explanation":"Jalinan menunjukkan sifat permukaan yang dapat dilihat seperti licin, berkilat, kasar atau beralur.","evidence":tex_ev,"types":[_text(x.get("type")) for x in _list(vis.get("textures")) if isinstance(x,dict) and _text(x.get("type"))],"examples":[],"color_details":""})
+
+    # Warna ialah unsur asas yang penting. Jika model tidak memulangkan array colors tetapi
+    # warna jelas disebut pada pemerhatian/prinsip, pulihkan nama warna yang dapat disokong.
+    if not vis["colors"]:
+        evidence_blob=" ".join([
+            desc,
+            _join_obs(vis.get("contrasts")),
+            _join_obs(vis.get("variety")),
+            _join_obs(vis.get("focal_points"))
+        ]).lower()
+        known=("merah jambu","merah","jingga","kuning","hijau","biru","ungu","putih","hitam","kelabu","coklat")
+        recovered=[]
+        for col in known:
+            if re.search(r"\\b"+re.escape(col)+r"\\b",evidence_blob):
+                recovered.append({"name":col,"location":"bahagian objek yang jelas kelihatan"})
+        if recovered: vis["colors"]=recovered
 
     color_ev=_join_pairs(vis.get("colors"),"name","location")
     if color_ev:
