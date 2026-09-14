@@ -20,47 +20,143 @@ const esc=s=>String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 go.onclick=async()=>{if(!imageData)return;statusEl.style.display="block";go.disabled=true;try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image:imageData})});const d=await r.json();if(!r.ok)throw Error(d.error||"Analisis gagal");obj.textContent=d.object_name||"";desc.textContent=d.object_description||"";conf.textContent="Keyakinan: "+(d.overall_confidence||"");els.innerHTML=(d.elements||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p>'+(x.types?.length?'<p><b>Jenis/Kategori:</b> '+esc(x.types.join(", "))+'</p>':"")+(x.examples?.length?'<p><b>Contoh:</b> '+esc(x.examples.join("; "))+'</p>':"")+(x.color_details?'<p><b>Analisis warna:</b> '+esc(x.color_details)+'</p>':"")+'<p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada unsur yang cukup jelas.</p>';prs.innerHTML=(d.principles||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p><p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada prinsip yang cukup jelas.</p>';tip.textContent=d.memory_tip||"";sum.textContent=d.learning_summary||"";resultEl.style.display="block";resultEl.scrollIntoView({behavior:"smooth"})}catch(e){alert(e.message)}finally{statusEl.style.display="none";go.disabled=false}};
 </script></body></html>"""
 
-PROMPT="""Anda ialah SeniScan AI untuk Pendidikan Seni Visual. Kenal pasti objek utama secara ringkas, kemudian analisis HANYA Unsur Seni dan Prinsip Rekaan yang benar-benar kelihatan. Jawab SEPENUHNYA dalam Bahasa Melayu.
+PROMPT="""Anda ialah pemerhati visual untuk aplikasi Pendidikan Seni Visual Malaysia.
 
-RUJUKAN KONSEP:
-7 Unsur Seni sahaja:
-Garisan — jenis dan lokasi garisan.
-Rupa — kawasan 2D, geometri atau organik.
-Bentuk — sifat 3D/isi padu seperti silinder, sfera, kuboid atau organik.
-Jalinan — sifat permukaan seperti licin, kasar, berkilat atau beralur.
-Warna — warna dominan; primer/asas, sekunder, tertier jika pasti; panas, sejuk, neutral; analogus, komplementari atau monokromatik hanya jika disokong imej.
-Ruang — jarak/kawasan, kedalaman, pertindihan atau perspektif.
-Nilai — darjah terang-gelap, cahaya, bayang dan perubahan ton.
+JANGAN tentukan nama Unsur Seni atau Prinsip Rekaan. Tugas anda hanya memerhati bukti visual pada imej dan pulangkan JSON SAHAJA.
 
-Prinsip Rekaan sahaja:
-Harmoni, Kontra, Penegasan, Kepelbagaian, Imbangan, Kesatuan, Irama & Pergerakan.
+Jawab dalam Bahasa Melayu. Jika sesuatu tidak jelas, gunakan senarai kosong [] dan jangan mereka-reka.
 
-PERATURAN WAJIB:
-Jangan keluarkan Purpose, Material, Packaging, Quality, Function, Brand atau kategori lain sebagai unsur/prinsip.
-Jangan paksa semua kategori. Pilih hanya yang mempunyai bukti visual.
-Setiap pilihan mesti menyebut bukti spesifik yang dapat dilihat pada imej.
-Jangan beri markah. Jika tidak pasti gunakan Berkemungkinan dan jangan mereka-reka.
-Gunakan istilah pendidikan seni yang mudah difahami pelajar.
+Struktur JSON WAJIB:
+{
+  "object_name":"",
+  "object_description":"",
+  "overall_confidence":"Jelas | Berkemungkinan | Tidak cukup jelas",
+  "visual":{
+    "lines":[{"type":"","location":""}],
+    "shapes":[{"type":"","location":""}],
+    "forms":[{"type":"","location":""}],
+    "textures":[{"type":"","location":""}],
+    "colors":[{"name":"","location":""}],
+    "space":[{"observation":""}],
+    "values":[{"observation":""}],
+    "focal_points":[{"observation":""}],
+    "contrasts":[{"observation":""}],
+    "repetitions":[{"observation":""}],
+    "balance":[{"observation":""}],
+    "unity":[{"observation":""}],
+    "variety":[{"observation":""}]
+  }
+}
 
-Pulangkan JSON SAHAJA:
-{"object_name":"","object_description":"","overall_confidence":"Jelas | Berkemungkinan | Tidak cukup jelas","elements":[{"name":"Garisan","confidence":"Jelas | Berkemungkinan","explanation":"","evidence":"","types":[],"examples":[],"color_details":""}],"principles":[{"name":"Harmoni","confidence":"Jelas | Berkemungkinan","explanation":"","evidence":""}],"memory_tip":"","learning_summary":""}"""
+Contoh cara memerhati:
+- lines: garisan melengkung pada kontur botol atau label
+- forms: bentuk silinder pada badan botol
+- textures: permukaan plastik licin atau berkilat
+- colors: biru pada label, putih pada tulisan
+- focal_points: tulisan besar atau warna dominan yang menarik perhatian
+- contrasts: tulisan putih berbeza jelas dengan latar biru
+- repetitions: corak/garisan berulang
+- balance: susunan visual kelihatan seimbang
+- unity: warna/bentuk kelihatan serasi
+- variety: terdapat variasi warna, rupa atau bentuk
 
-ALLOWED_ELEMENTS={"Garisan","Rupa","Bentuk","Jalinan","Warna","Ruang","Nilai"}
-ALLOWED_PRINCIPLES={"Harmoni","Kontra","Penegasan","Kepelbagaian","Imbangan","Kesatuan","Irama & Pergerakan"}
+Jangan masukkan maklumat pemasaran seperti fungsi, tujuan, kualiti, jenama atau kandungan produk sebagai ciri seni kecuali ia benar-benar bukti visual seperti tulisan pada label.
+"""
 
-def clean_art_result(d):
-    if not isinstance(d,dict): raise RuntimeError("Format analisis AI tidak sah.")
-    def norm(items,allowed):
-        out=[]
-        for x in items if isinstance(items,list) else []:
-            if not isinstance(x,dict): continue
-            name=str(x.get("name","")).strip()
-            if name not in allowed: continue
-            out.append(x)
-        return out
-    d["elements"]=norm(d.get("elements",[]),ALLOWED_ELEMENTS)
-    d["principles"]=norm(d.get("principles",[]),ALLOWED_PRINCIPLES)
-    return d
+def _list(v):
+    return v if isinstance(v,list) else []
+
+def _text(v):
+    return str(v or "").strip()
+
+def _join_obs(items, key="observation"):
+    vals=[]
+    for x in _list(items):
+        if isinstance(x,dict):
+            a=_text(x.get(key))
+            if a: vals.append(a)
+    return "; ".join(vals)
+
+def _join_pairs(items, akey, bkey):
+    vals=[]
+    for x in _list(items):
+        if not isinstance(x,dict): continue
+        a=_text(x.get(akey)); b=_text(x.get(bkey))
+        if a and b: vals.append(f"{a} pada {b}")
+        elif a: vals.append(a)
+        elif b: vals.append(b)
+    return "; ".join(vals)
+
+def build_art_result(obs):
+    if not isinstance(obs,dict):
+        raise RuntimeError("Format pemerhatian AI tidak sah.")
+
+    vis=obs.get("visual") if isinstance(obs.get("visual"),dict) else {}
+    elements=[]
+    principles=[]
+
+    line_ev=_join_pairs(vis.get("lines"),"type","location")
+    if line_ev:
+        elements.append({"name":"Garisan","confidence":"Jelas","explanation":"Garisan dapat dikenal pasti melalui arah, lengkungan atau sempadan visual pada objek.","evidence":line_ev,"types":[_text(x.get("type")) for x in _list(vis.get("lines")) if isinstance(x,dict) and _text(x.get("type"))],"examples":[],"color_details":""})
+
+    shape_ev=_join_pairs(vis.get("shapes"),"type","location")
+    if shape_ev:
+        elements.append({"name":"Rupa","confidence":"Jelas","explanation":"Rupa merujuk kawasan dua dimensi yang dapat dilihat pada permukaan objek.","evidence":shape_ev,"types":[_text(x.get("type")) for x in _list(vis.get("shapes")) if isinstance(x,dict) and _text(x.get("type"))],"examples":[],"color_details":""})
+
+    form_ev=_join_pairs(vis.get("forms"),"type","location")
+    if form_ev:
+        elements.append({"name":"Bentuk","confidence":"Jelas","explanation":"Bentuk merujuk sifat tiga dimensi dan isi padu objek.","evidence":form_ev,"types":[_text(x.get("type")) for x in _list(vis.get("forms")) if isinstance(x,dict) and _text(x.get("type"))],"examples":[],"color_details":""})
+
+    tex_ev=_join_pairs(vis.get("textures"),"type","location")
+    if tex_ev:
+        elements.append({"name":"Jalinan","confidence":"Jelas","explanation":"Jalinan menunjukkan sifat permukaan yang dapat dilihat seperti licin, berkilat, kasar atau beralur.","evidence":tex_ev,"types":[_text(x.get("type")) for x in _list(vis.get("textures")) if isinstance(x,dict) and _text(x.get("type"))],"examples":[],"color_details":""})
+
+    color_ev=_join_pairs(vis.get("colors"),"name","location")
+    if color_ev:
+        names=[_text(x.get("name")) for x in _list(vis.get("colors")) if isinstance(x,dict) and _text(x.get("name"))]
+        elements.append({"name":"Warna","confidence":"Jelas","explanation":"Warna membantu membezakan bahagian objek dan mewujudkan kesan visual tertentu.","evidence":color_ev,"types":[],"examples":[],"color_details":", ".join(names)})
+
+    space_ev=_join_obs(vis.get("space"))
+    if space_ev:
+        elements.append({"name":"Ruang","confidence":"Jelas","explanation":"Ruang merujuk jarak, kedalaman atau kawasan di sekeliling dan antara bahagian objek.","evidence":space_ev,"types":[],"examples":[],"color_details":""})
+
+    value_ev=_join_obs(vis.get("values"))
+    if value_ev:
+        elements.append({"name":"Nilai","confidence":"Jelas","explanation":"Nilai ialah perbezaan terang dan gelap yang terhasil daripada cahaya, bayang atau ton.","evidence":value_ev,"types":[],"examples":[],"color_details":""})
+
+    def add_principle(name, items, explanation):
+        ev=_join_obs(items)
+        if ev:
+            principles.append({"name":name,"confidence":"Jelas","explanation":explanation,"evidence":ev})
+
+    add_principle("Penegasan",vis.get("focal_points"),"Penegasan berlaku apabila satu bahagian menjadi tumpuan utama.")
+    add_principle("Kontra",vis.get("contrasts"),"Kontra terhasil melalui perbezaan yang ketara seperti warna, nilai, saiz atau rupa.")
+    add_principle("Irama & Pergerakan",vis.get("repetitions"),"Pengulangan unsur visual boleh mewujudkan irama dan mengarahkan pergerakan mata.")
+    add_principle("Imbangan",vis.get("balance"),"Imbangan mewujudkan kestabilan visual melalui susunan unsur.")
+    add_principle("Kesatuan",vis.get("unity"),"Kesatuan berlaku apabila unsur visual kelihatan saling berkaitan sebagai satu keseluruhan.")
+    add_principle("Kepelbagaian",vis.get("variety"),"Kepelbagaian wujud melalui variasi unsur seperti warna, rupa, bentuk atau jalinan.")
+
+    # Harmoni: derive conservatively only when unity observation explicitly mentions serasi/harmoni.
+    unity_ev=_join_obs(vis.get("unity"))
+    if unity_ev and re.search(r"harmoni|serasi|selaras", unity_ev, re.I):
+        principles.append({"name":"Harmoni","confidence":"Berkemungkinan","explanation":"Harmoni terhasil apabila unsur visual kelihatan serasi dan saling melengkapi.","evidence":unity_ev})
+
+    names=[x["name"] for x in elements]
+    pnames=[x["name"] for x in principles]
+    memory=[]
+    if names: memory.append("Unsur yang jelas: "+", ".join(names)+".")
+    if pnames: memory.append("Prinsip yang jelas: "+", ".join(pnames)+".")
+    tip=" ".join(memory) or "Fokus pada apa yang benar-benar dapat dilihat pada objek."
+
+    return {
+        "object_name":_text(obs.get("object_name")),
+        "object_description":_text(obs.get("object_description")),
+        "overall_confidence":_text(obs.get("overall_confidence")) or "Berkemungkinan",
+        "elements":elements,
+        "principles":principles,
+        "memory_tip":tip,
+        "learning_summary":"Analisis dibuat berdasarkan bukti visual pada imej, bukan fungsi atau maklumat produk."
+    }
 
 def analyze(image):
     if not CF_ACCOUNT_ID or not CF_API_TOKEN:
@@ -70,8 +166,8 @@ def analyze(image):
         "image":image,
         "question":PROMPT,
         "reasoning":False,
-        "temperature":0.1,
-        "max_tokens":1000,
+        "temperature":0,
+        "max_tokens":1200,
         "stream":False
     }
     url=f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{MODEL}"
@@ -86,33 +182,31 @@ def analyze(image):
         if e.code==403: raise RuntimeError("Akses Workers AI ditolak. Semak permission token dan Account ID.")
         if e.code==429: raise RuntimeError("Kuota/limit Workers AI telah dicapai. Cuba semula kemudian.")
         raise RuntimeError("Ralat Cloudflare AI: "+detail[:500])
+
     result=data.get("result")
-    print("[SeniScan] result type:", type(result).__name__, flush=True)
-    # Cloudflare may wrap the model output as:
-    # result -> {result: {answer: "...", usage: {...}}}
-    # Unwrap nested result dictionaries before reading answer.
-    while isinstance(result, dict) and "result" in result and not any(
-        k in result for k in ("answer","response","caption","description","text")
-    ):
-        print("[SeniScan] result keys:", list(result.keys()), flush=True)
+    while isinstance(result,dict) and "result" in result and not any(k in result for k in ("answer","response","caption","description","text")):
         result=result.get("result")
-    if isinstance(result, dict):
-        print("[SeniScan] final result keys:", list(result.keys()), flush=True)
-        text=(result.get("answer") or result.get("response") or result.get("caption")
-              or result.get("description") or result.get("text") or "")
-    elif isinstance(result, str):
+
+    if isinstance(result,dict):
+        text=(result.get("answer") or result.get("response") or result.get("caption") or result.get("description") or result.get("text") or "")
+    elif isinstance(result,str):
         text=result
     else:
         text=""
+
     if not text:
-        print("[SeniScan] unreadable result:", json.dumps(result, ensure_ascii=False)[:800], flush=True)
-        raise RuntimeError("Respons Cloudflare AI diterima tetapi formatnya belum dikenali.")
+        raise RuntimeError("Respons Cloudflare AI diterima tetapi tidak mengandungi pemerhatian yang boleh dibaca.")
+
     text=re.sub(r"^\`\`\`(?:json)?|\`\`\`$","",str(text).strip()).strip()
-    try:return clean_art_result(json.loads(text))
-    except:
+    try:
+        obs=json.loads(text)
+    except Exception:
         m=re.search(r"\{.*\}",text,re.S)
-        if not m:raise RuntimeError("AI berjaya melihat imej tetapi respons belum dalam format SeniScan. Cuba sekali lagi.")
-        return clean_art_result(json.loads(m.group()))
+        if not m:
+            raise RuntimeError("AI berjaya melihat imej tetapi respons pemerhatian belum dapat dibaca. Cuba sekali lagi.")
+        obs=json.loads(m.group())
+
+    return build_art_result(obs)
 
 class H(BaseHTTPRequestHandler):
     def send(self,n,b,t="application/json; charset=utf-8"):
