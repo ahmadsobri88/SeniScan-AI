@@ -92,11 +92,71 @@ def _join_pairs(items, akey, bkey):
         elif b: vals.append(b)
     return "; ".join(vals)
 
+BM_MAP={
+"vertical":"menegak","horizontal":"mendatar","curved":"melengkung","wavy":"beralun","zigzag":"zigzag",
+"smooth":"licin","slightly rough":"agak kasar","rough":"kasar","glossy":"berkilat","ribbed":"beralur",
+"cylindrical":"silinder","cylinder":"silinder","circular":"bulatan","circle":"bulatan",
+"rectangular":"segi empat tepat","rectangle":"segi empat tepat","geometric":"geometri","organic":"organik",
+"blue":"biru","green":"hijau","white":"putih","black":"hitam","red":"merah","yellow":"kuning","orange":"jingga",
+"purple":"ungu","grey":"kelabu","gray":"kelabu","high":"Jelas","medium":"Berkemungkinan","low":"Tidak cukup jelas"
+}
+def _bm(s):
+    s=_text(s)
+    for en,ms in sorted(BM_MAP.items(),key=lambda x:-len(x[0])):
+        s=re.sub(r"\b"+re.escape(en)+r"\b",ms,s,flags=re.I)
+    return s
+
+def _valid_pairs(items,kind):
+    out=[]
+    allowed={
+      "line":("menegak","mendatar","melengkung","beralun","zigzag","putus-putus","diagonal"),
+      "shape":("bulatan","segi empat","segi tiga","bujur","oval","geometri","organik"),
+      "form":("silinder","sfera","kubus","kon","piramid","prisma","organik"),
+      "texture":("licin","kasar","agak kasar","berkilat","beralur","berbulu","berduri")
+    }[kind]
+    for x in _list(items):
+        if not isinstance(x,dict): continue
+        typ=_bm(x.get("type")); loc=_bm(x.get("location"))
+        # Repair common 2D/3D model confusion rather than displaying it.
+        if kind=="shape" and typ=="silinder": continue
+        if kind=="form" and typ in ("bulatan","segi empat tepat","segi tiga","bujur","oval"): continue
+        if typ and any(a in typ.lower() for a in allowed) and loc:
+            out.append({"type":typ,"location":loc})
+    return out
+
+def _valid_obs(items,kind):
+    out=[]
+    reject={
+      "space":("texture","jalinan","licin","kasar","label sahaja","atas label","bawah label"),
+      "value":("clear water","clear text","clear logo","transparent","translucent","lutsinar","jernih"),
+    }.get(kind,())
+    require={
+      "space":("hadapan","belakang","pertindih","jarak","kedalaman","ruang positif","ruang negatif","foreground","background"),
+      "value":("terang","gelap","ton","cahaya","bayang","highlight","shadow"),
+    }.get(kind,())
+    for x in _list(items):
+        if not isinstance(x,dict): continue
+        s=_bm(x.get("observation")); low=s.lower()
+        if s and not any(r in low for r in reject) and (not require or any(r in low for r in require)):
+            out.append({"observation":s})
+    return out
+
 def build_art_result(obs):
     if not isinstance(obs,dict):
         raise RuntimeError("Format pemerhatian AI tidak sah.")
 
     vis=obs.get("visual") if isinstance(obs.get("visual"),dict) else {}
+    # Lapisan penapis PSV: jangan percaya kategori mentah model secara terus.
+    vis=dict(vis)
+    vis["lines"]=_valid_pairs(vis.get("lines"),"line")
+    vis["shapes"]=_valid_pairs(vis.get("shapes"),"shape")
+    vis["forms"]=_valid_pairs(vis.get("forms"),"form")
+    vis["textures"]=_valid_pairs(vis.get("textures"),"texture")
+    vis["space"]=_valid_obs(vis.get("space"),"space")
+    vis["values"]=_valid_obs(vis.get("values"),"value")
+    for k in ("focal_points","contrasts","repetitions","balance","unity","variety"):
+        vis[k]=[{"observation":_bm(x.get("observation"))} for x in _list(vis.get(k)) if isinstance(x,dict) and _text(x.get("observation"))]
+    vis["colors"]=[{"name":_bm(x.get("name")),"location":_bm(x.get("location"))} for x in _list(vis.get("colors")) if isinstance(x,dict) and _text(x.get("name")) and _text(x.get("location"))]
     elements=[]
     principles=[]
 
@@ -154,9 +214,9 @@ def build_art_result(obs):
     tip=" ".join(memory) or "Fokus pada apa yang benar-benar dapat dilihat pada objek."
 
     return {
-        "object_name":_text(obs.get("object_name")),
-        "object_description":_text(obs.get("object_description")),
-        "overall_confidence":_text(obs.get("overall_confidence")) or "Berkemungkinan",
+        "object_name":_bm(obs.get("object_name")),
+        "object_description":_bm(obs.get("object_description")),
+        "overall_confidence":_bm(obs.get("overall_confidence")) or "Berkemungkinan",
         "elements":elements,
         "principles":principles,
         "memory_tip":tip,
