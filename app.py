@@ -66,22 +66,13 @@ const esc=s=>String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 go.onclick=async()=>{if(!imageData)return;statusEl.style.display="block";go.disabled=true;try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image:imageData})});const d=await r.json();if(!r.ok)throw Error(d.error||"Analisis gagal");obj.textContent=d.object_name||"";desc.textContent=d.object_description||"";conf.textContent="Keyakinan: "+(d.overall_confidence||"");els.innerHTML=(d.elements||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p>'+(x.types?.length?'<p><b>Jenis/Kategori:</b> '+esc(x.types.join(", "))+'</p>':"")+(x.examples?.length?'<p><b>Contoh:</b> '+esc(x.examples.join("; "))+'</p>':"")+(x.color_details?'<p><b>Analisis warna:</b> '+esc(x.color_details)+'</p>':"")+'<p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada unsur yang cukup jelas.</p>';prs.innerHTML=(d.principles||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p><p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada prinsip yang cukup jelas.</p>';tip.textContent=d.memory_tip||"";notes.innerHTML=(d.learning_notes||[]).map(x=>'<div class="item"><h3>'+esc(x.title)+'</h3><p>'+esc(x.note)+'</p></div>').join("")||'<p class="mut">Tiada nota tambahan.</p>';refs.innerHTML=(d.references||[]).map(x=>'<p>• '+esc(x)+'</p>').join("");sum.textContent=d.learning_summary||"";resultEl.style.display="block";resultEl.scrollIntoView({behavior:"smooth"})}catch(e){alert(e.message)}finally{statusEl.style.display="none";go.disabled=false}};
 </script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}))}</script></body></html>"""
 
-PROMPT="""Lihat imej ini. Senaraikan objek dan unsur seni yang benar-benar kelihatan.
-Pulangkan JSON sahaja, dengan SEMUA nilai teks dalam Bahasa Melayu:
-{"object_name":"nama ringkas objek atau gubahan", "object_description":"penerangan ringkas imej", "overall_confidence":"Berdasarkan pemerhatian AI", "visual":{"lines":[],"shapes":[],"forms":[],"textures":[],"colors":[],"space":[],"values":[]}}
-Isi setiap senarai seperti berikut, maksimum 4 item setiap kategori:
-lines, shapes, forms, textures: {"type":"jenis", "location":"objek dan lokasi"}.
-colors: {"name":"nama warna", "location":"objek dan lokasi"}.
-space, values: {"observation":"bukti khusus pada imej"}.
-Garisan: menegak, mendatar, diagonal atau melengkung.
-Rupa ialah kawasan 2D: bulatan, segi tiga, segi empat atau organik.
-Bentuk ialah isipadu 3D: hanya jika objek mempunyai kedalaman yang jelas. Segi empat rata BUKAN kubus. Bulatan rata BUKAN sfera. Imej geometri rata boleh mempunyai forms kosong.
-Jalinan: hanya sifat permukaan yang kelihatan, jangan anggap semua objek licin atau kasar.
-Warna: senaraikan semua warna utama yang jelas berserta lokasinya.
-Ruang: hanya pertindihan atau kedalaman sebenar. Nilai: hanya bukti ton terang-gelap.
-Jika tidak kelihatan, gunakan []. Jangan mereka ciri. Jangan analisis Prinsip Rekaan dalam langkah ini.
-Gunakan nama Melayu: kiri, kanan, atas, bawah, tengah, merah, hijau, biru, bulatan, segi tiga, segi empat sama.
-"""
+PROMPT="""Describe only the visible visual features of this image. Return JSON only:
+{"object_name":"", "object_description":"", "overall_confidence":"Based on AI observation", "visual":{"lines":[],"shapes":[],"forms":[],"textures":[],"colors":[],"space":[],"values":[]}}
+For lines/shapes/forms/textures use items {"type":"", "location":"specific visible object and location"}.
+For colors use {"name":"", "location":"specific object and location"}.
+For space/values use {"observation":"specific visible evidence"}.
+Use short factual English phrases. List up to 4 items per category. Empty arrays mean no evidence.
+Distinguish flat 2D shapes (circle, triangle, square) from real 3D volume (sphere, cone, cube). Flat drawings of squares are NOT cubes. Only describe texture if actually visible. Count shapes carefully and locate colors accurately. Do not invent shapes, volume or objects. A blank image has no objects and empty feature lists. Do not copy instructions into the answer."""
 
 def _list(v):
     return v if isinstance(v,list) else []
@@ -154,7 +145,7 @@ def _principle_observations(items):
     for item in _list(items):
         raw=item if isinstance(item,str) else item.get("observation",item.get("evidence","")) if isinstance(item,dict) else ""
         s=_bm(raw)
-        if len(s)<24 or re.search(r"\b(tiada|tidak kelihatan|tidak jelas|tidak cukup|no|none|not evident|not visible|cannot|unclear)\b",s,re.I):
+        if len(s)<24 or re.search(r"\b(nyatakan|senaraikan|pulangkan|identify|describe|return JSON|only one|satu objek paling dominan sahaja)\b",s,re.I) or re.search(r"\b(tiada|tidak kelihatan|tidak jelas|tidak cukup|no|none|not evident|not visible|cannot|unclear)\b",s,re.I):
             continue
         out.append({"observation":s})
     return out
@@ -275,11 +266,9 @@ def build_art_result(obs):
         ls=[x for x in ("menegak","mendatar","melengkung","beralun","diagonal","zigzag") if x in dl]
         if ls: vis["lines"]=[{"type":x,"location":"bahagian objek yang jelas kelihatan"} for x in ls]
     if not vis["forms"]:
-        fs=[x for x in ("silinder","sfera","kubus","kon","piramid","prisma") if x in dl]
+        fs=[x for x in ("silinder","sfera","kubus","kon","piramid","prisma") if re.search(r"\b"+re.escape(x)+r"\b",dl)]
         if fs:
             vis["forms"]=[{"type":x,"location":"bentuk utama objek"} for x in fs]
-        elif re.search(r"bunga|daun|dedaunan|kelopak|gubahan",dl):
-            vis["forms"]=[{"type":"organik","location":"bunga dan daun yang mempunyai isi padu"}]
     if not vis["shapes"] and re.search(r"daun|dedaunan|kelopak|bunga",dl):
         vis["shapes"]=[{"type":"organik","location":"daun atau kelopak yang kelihatan"}]
     if not vis["shapes"] and re.search(r"geometri|bulat|segi tiga|bulatan|segi empat",dl):
@@ -291,15 +280,10 @@ def build_art_result(obs):
         if not recovered_shapes and "geometri" in dl:
             recovered_shapes.append({"type":"geometri","location":"bahagian objek yang dibina daripada rupa geometri"})
         vis["shapes"]=recovered_shapes
-    if not vis["lines"] and ("geometri" in dl or len(vis["shapes"]) >= 2):
-        vis["lines"]=[
-            {"type":"diagonal","location":"sempadan antara rupa geometri"},
-            {"type":"melengkung","location":"kontur pada bahagian objek yang berbentuk bulat"}
-        ]
     if not vis["textures"]:
         ts=[x for x in ("licin","kasar","berkilat","beralur","berbulu","berduri") if x in dl]
         if ts: vis["textures"]=[{"type":x,"location":"permukaan objek yang jelas kelihatan"} for x in ts]
-    if not vis["space"] and re.search(r"bertindih|pertindihan|di hadapan|di belakang|kedalaman|gubahan|komposisi",dl):
+    if not vis["space"] and re.search(r"bertindih|pertindihan|di hadapan|di belakang|kedalaman",dl):
         vis["space"]=[{"observation":"Susunan bahagian objek yang saling berada di hadapan dan belakang menghasilkan kesan ruang dan kedalaman."}]
     if not vis["values"] and re.search(r"terang.*gelap|gelap.*terang|cahaya|bayang|ton|berkilat",dl):
         vis["values"]=[{"observation":"Perbezaan cahaya dan bayang pada permukaan objek menghasilkan nilai terang dan gelap."}]
@@ -394,19 +378,43 @@ def build_art_result(obs):
         "references":REFERENCES
     }
 
-PRINCIPLE_PROMPT='''Teliti keseluruhan imej untuk Prinsip Rekaan sahaja, termasuk objek kecil dan susunan kiri-kanan.
-Pulangkan JSON sahaja dengan kunci focal_points, contrasts, repetitions, balance, unity, variety, harmony, movement.
-Setiap nilai ialah [] jika tiada bukti, atau [{"observation":"ayat Bahasa Melayu yang menyatakan objek, ciri visual dan lokasi khusus"}].
-repetitions: nyatakan motif yang berulang, bilangannya dan lokasi.
-balance: nyatakan objek di kiri dan kanan yang mengimbangkan berat visual.
-contrasts: nyatakan dua ciri yang benar-benar berkontra dan lokasi.
-harmony: nyatakan warna, rupa atau jalinan yang serasi pada objek tertentu.
-movement: nyatakan susunan atau garisan yang mengarahkan mata.
-unity: nyatakan ciri khusus yang menyatukan objek.
-variety: nyatakan rupa atau saiz yang berbeza.
-focal_points: satu objek paling dominan sahaja.
-Jangan mereka bukti. Elakkan ayat umum seperti "susunan simetri" tanpa menyebut objek. Imej kosong boleh mempunyai semua nilai [].
-WAJIB Bahasa Melayu: kiri, kanan, atas, bawah, bulatan, segi tiga, segi empat, merah, hijau, biru. Jangan gunakan perkataan Inggeris dalam observation.'''
+PRINCIPLE_PROMPT='''Inspect this image for design principles. Return only JSON with keys focal_points, contrasts, repetitions, balance, unity, variety, harmony, movement.
+Each value must be [] unless supported, otherwise [{"observation":"specific visible evidence"}].
+Write short factual English phrases naming actual objects, colors, positions and counts.
+Describe repeated motifs and their count for repetition; actual objects at left and right for balance; two visible contrasting features for contrast; compatible similar colors/shapes for harmony; directional arrangements for movement; shared features for unity; different shapes/sizes for variety; at most one dominant object for focal_points.
+Blank images have empty arrays. Do not repeat these instructions or generic definitions. Do not invent evidence.'''
+
+TRANSLATION_MODEL="@cf/qwen/qwen3-30b-a3b-fp8"
+
+def translate_observation(obs):
+    paths=[];texts=[]
+    def collect(value,path):
+        if isinstance(value,dict):
+            for k,v in value.items(): collect(v,path+[k])
+        elif isinstance(value,list):
+            for i,v in enumerate(value): collect(v,path+[i])
+        elif isinstance(value,str) and value.strip():
+            paths.append(path);texts.append(value)
+    collect(obs,[])
+    if not texts: return obs
+    payload={"messages":[{"role":"system","content":"You are a Bahasa Melayu Malaysia translator. Translate every string in the input JSON array into natural Bahasa Melayu. Preserve facts, counts, negation and order. Do not add interpretations. Use Pendidikan Seni Visual terms: rupa for 2D shape, bentuk for 3D form, imbangan, harmoni, kontra, pengulangan. Return only a JSON object with key translations containing the translated string array. /no_think"},{"role":"user","content":json.dumps(texts,ensure_ascii=False)}],"max_tokens":2400,"temperature":0,"stream":False}
+    req=urllib.request.Request(f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{TRANSLATION_MODEL}",data=json.dumps(payload).encode(),headers={"Authorization":"Bearer "+CF_API_TOKEN,"Content-Type":"application/json"},method="POST")
+    with urllib.request.urlopen(req,timeout=60) as r: data=json.load(r)
+    result=data.get("result") or {}
+    answer=result.get("response","")
+    if not answer and result.get("choices"):
+        answer=result["choices"][0].get("message",{}).get("content","")
+    answer=re.sub(r"<think>.*?</think>","",answer,flags=re.S).strip()
+    match=re.search(r"\{.*\}",answer,re.S)
+    translated=json.loads(match.group() if match else answer).get("translations")
+    if not isinstance(translated,list) or len(translated)!=len(texts) or not all(isinstance(x,str) and x.strip() for x in translated):
+        raise RuntimeError("Format terjemahan tidak sah.")
+    output=json.loads(json.dumps(obs))
+    for path,value in zip(paths,translated):
+        parent=output
+        for key in path[:-1]: parent=parent[key]
+        parent[path[-1]]=value
+    return output
 
 def query_visual(image,question,reasoning=False):
     if not CF_ACCOUNT_ID or not CF_API_TOKEN:
@@ -478,6 +486,14 @@ def analyze(image):
         except (RuntimeError,ValueError,urllib.error.URLError,TimeoutError) as e:
             print("[SeniScan] Focused principle check unavailable: "+type(e).__name__,flush=True)
             result["learning_summary"]+=" Semakan tambahan Prinsip Rekaan tidak dapat diselesaikan. Sila cuba semula."
+    warning="Semakan tambahan Prinsip Rekaan tidak dapat diselesaikan." in result["learning_summary"]
+    try:
+        obs=translate_observation(obs)
+        result=build_art_result(obs)
+        if warning: result["learning_summary"]+=" Semakan tambahan Prinsip Rekaan tidak dapat diselesaikan. Sila cuba semula."
+    except (RuntimeError,ValueError,urllib.error.URLError,TimeoutError,KeyError,TypeError):
+        print("[SeniScan] Malay translation unavailable",flush=True)
+        result["learning_summary"]+=" Terjemahan Bahasa Melayu tidak dapat diselesaikan sepenuhnya. Sila cuba semula."
     if not result["elements"] and not result["principles"]:
         result["overall_confidence"]="Tidak cukup jelas"
     return result
