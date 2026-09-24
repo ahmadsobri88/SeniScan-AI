@@ -151,6 +151,8 @@ def _join_pairs(items, akey, bkey):
     return "; ".join(vals)
 
 BM_MAP={
+"left":"kiri","right":"kanan","edges":"tepi","edge":"tepi","corners":"penjuru","corner":"penjuru","central":"tengah","position":"kedudukan","positions":"kedudukan","row":"baris","rows":"baris","across":"merentasi","along":"sepanjang","around":"di sekeliling","between":"di antara","below":"di bawah","above":"di atas","at":"di","on":"pada","in":"di dalam","the":"","is":"ialah","are":"ialah","of":"","and":"dan","with":"dengan",
+"visual weight":"berat visual","focal point":"tumpuan utama","focal":"tumpuan","contrast":"kontra","contrasting":"berkontra","colors":"warna","colours":"warna","color":"warna","colour":"warna","similar":"serupa","same":"sama","sizes":"saiz","size":"saiz","pattern":"corak","patterns":"corak","elements":"unsur","element":"unsur","arranged":"disusun","arrangement":"susunan","horizontal row":"baris mendatar","evenly spaced":"berjarak sekata","spaced":"berjarak","spacing":"jarak","small":"kecil","larger":"lebih besar","smaller":"lebih kecil","large":"besar","two":"dua","three":"tiga","four":"empat","five":"lima","no":"tiada","none":"tiada","not visible":"tidak kelihatan","not evident":"tidak kelihatan",
 "object":"objek","objects":"objek","triangle":"segi tiga","triangles":"segi tiga","square":"segi empat sama","squares":"segi empat sama","circles":"bulatan","rectangles":"segi empat tepat",
 "repetition":"pengulangan","repeated":"berulang","repeating":"berulang","repeat":"berulang","rhythm":"irama","movement":"pergerakan","direction":"arah","directs":"mengarahkan","leading":"mengarah",
 "balanced":"seimbang","balance":"imbangan","symmetrical":"simetri","symmetric":"simetri","symmetry":"simetri","stability":"kestabilan",
@@ -184,7 +186,21 @@ def _bm(s):
         s=re.sub(r"\b"+re.escape(en)+r"\b",ms,s,flags=re.I)
     for en,ms in sorted(BM_MAP.items(),key=lambda x:-len(x[0])):
         s=re.sub(r"\b"+re.escape(en)+r"\b",ms,s,flags=re.I)
-    return s
+    return re.sub(r"[ \t]+", " ", s).strip()
+
+PRINCIPLE_KEYS=("focal_points","contrasts","repetitions","balance","unity","variety","harmony","movement")
+
+def _principle_observations(items):
+    if isinstance(items,str): items=[items]
+    if isinstance(items,dict): items=[items]
+    out=[]
+    for item in _list(items):
+        raw=item if isinstance(item,str) else item.get("observation",item.get("evidence","")) if isinstance(item,dict) else ""
+        s=_bm(raw)
+        if len(s)<12 or re.search(r"\b(tiada|tidak kelihatan|tidak jelas|tidak cukup|no|none|not evident|not visible|cannot|unclear)\b",s,re.I):
+            continue
+        out.append({"observation":s})
+    return out
 
 def _valid_pairs(items,kind):
     out=[]
@@ -256,8 +272,8 @@ def build_art_result(obs):
     vis["textures"]=_valid_pairs(vis.get("textures"),"texture")
     vis["space"]=_valid_obs(vis.get("space"),"space")
     vis["values"]=_valid_obs(vis.get("values"),"value")
-    for k in ("focal_points","contrasts","repetitions","balance","unity","variety","harmony","movement"):
-        vis[k]=[{"observation":_bm(x.get("observation"))} for x in _list(vis.get(k)) if isinstance(x,dict) and _text(x.get("observation"))]
+    for k in PRINCIPLE_KEYS:
+        vis[k]=_principle_observations(vis.get(k))
     # Prinsip rekaan perlu lebih ketat: penegasan hanya satu fokus dominan, pengulangan mesti nyata,
     # dan kesatuan/kepelbagaian tidak dipaparkan daripada istilah umum semata-mata.
     if len(vis["focal_points"]) != 1:
@@ -421,14 +437,22 @@ def build_art_result(obs):
         "references":REFERENCES
     }
 
-def analyze(image):
+PRINCIPLE_PROMPT='''Examine the visual composition of this image for design principles only.
+Return a JSON object with these keys: focal_points, contrasts, repetitions, balance, unity, variety, harmony, movement.
+Each value is [] when unsupported, otherwise [{"observation":"short specific visual evidence in Bahasa Melayu"}].
+Inspect the whole image, including repeated objects and left/right arrangement, not only the largest object.
+For repetitions identify the repeated motif, count and location. For balance describe left/right visual weights. For contrasts identify the two visibly different features. For harmony identify similar compatible visual features. For movement identify an actual directional arrangement. For unity identify a shared motif. For variety name different shapes or sizes. For focal_points identify only one dominant focal object.
+Evidence MUST name visible shapes/objects/colors and their locations. Do not fill a category just because it is listed. Never invent objects. Plain backgrounds can have no principles.
+Use short Malay phrases; for example the vocabulary "pengulangan", "imbangan", "kontra", "harmoni", "pergerakan", "kesatuan", "kepelbagaian". Output JSON only.'''
+
+def query_visual(image,question,reasoning=False):
     if not CF_ACCOUNT_ID or not CF_API_TOKEN:
         raise RuntimeError("Cloudflare belum dikonfigurasi. Semak CLOUDFLARE_ACCOUNT_ID dan CLOUDFLARE_API_TOKEN di Render.")
     payload={
         "task":"query",
         "image":image,
-        "question":PROMPT,
-        "reasoning":False,
+        "question":question,
+        "reasoning":reasoning,
         "temperature":0,
         "max_tokens":1800,
         "stream":False
@@ -469,7 +493,29 @@ def analyze(image):
             raise RuntimeError("AI berjaya melihat imej tetapi respons pemerhatian belum dapat dibaca. Cuba sekali lagi.")
         obs=json.loads(m.group())
 
-    return build_art_result(obs)
+    if not isinstance(obs,dict):
+        raise RuntimeError("Format pemerhatian AI tidak sah. Cuba sekali lagi.")
+    return obs
+
+def analyze(image):
+    if not isinstance(image,str) or not image.startswith("data:image/") or ";base64," not in image:
+        raise ValueError("Sila pilih fail gambar yang sah.")
+    obs=query_visual(image,PROMPT)
+    result=build_art_result(obs)
+    if not result["principles"]:
+        try:
+            focused=query_visual(image,PRINCIPLE_PROMPT,reasoning=True)
+            visual=focused.get("visual",focused)
+            if isinstance(visual,dict):
+                combined=dict(obs.get("visual") or {})
+                combined.update({k:visual[k] for k in PRINCIPLE_KEYS if k in visual})
+                obs=dict(obs,visual=combined)
+                result=build_art_result(obs)
+            print("[SeniScan] Focused principle check: "+str(len(result["principles"]))+" supported principles",flush=True)
+        except (RuntimeError,ValueError,urllib.error.URLError,TimeoutError) as e:
+            print("[SeniScan] Focused principle check unavailable: "+type(e).__name__,flush=True)
+            result["learning_summary"]+=" Semakan tambahan Prinsip Rekaan tidak dapat diselesaikan. Sila cuba semula."
+    return result
 
 class H(BaseHTTPRequestHandler):
     def send(self,n,b,t="application/json; charset=utf-8"):
@@ -481,7 +527,7 @@ class H(BaseHTTPRequestHandler):
         elif self.path=="/icon.svg":self.send(200,PWA_ICON,"image/svg+xml; charset=utf-8")
         elif self.path=="/sw.js":
             self.send_response(200);b=PWA_SW.encode();self.send_header("Content-Type","application/javascript; charset=utf-8");self.send_header("Cache-Control","no-cache");self.send_header("Service-Worker-Allowed","/");self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
-        elif self.path=="/health":self.send(200,{"ok":True,"provider":"cloudflare","model":MODEL,"cloudflare_configured":bool(CF_ACCOUNT_ID and CF_API_TOKEN)})
+        elif self.path=="/health":self.send(200,{"ok":True,"provider":"cloudflare","model":MODEL,"cloudflare_configured":bool(CF_ACCOUNT_ID and CF_API_TOKEN),"revision":os.environ.get("RENDER_GIT_COMMIT","")})
         else:self.send(404,{"error":"Tidak dijumpai"})
     def do_POST(self):
         if self.path!="/api/analyze":return self.send(404,{"error":"Tidak dijumpai"})
