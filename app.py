@@ -151,6 +151,10 @@ def _join_pairs(items, akey, bkey):
     return "; ".join(vals)
 
 BM_MAP={
+"object":"objek","objects":"objek","triangle":"segi tiga","triangles":"segi tiga","square":"segi empat sama","squares":"segi empat sama","circles":"bulatan","rectangles":"segi empat tepat",
+"repetition":"pengulangan","repeated":"berulang","repeating":"berulang","repeat":"berulang","rhythm":"irama","movement":"pergerakan","direction":"arah","directs":"mengarahkan","leading":"mengarah",
+"balanced":"seimbang","balance":"imbangan","symmetrical":"simetri","symmetric":"simetri","symmetry":"simetri","stability":"kestabilan",
+"unity":"kesatuan","unified":"bersatu","cohesive":"bersatu","variety":"kepelbagaian","variation":"variasi","different":"berbeza","harmony":"harmoni","harmonious":"harmoni","compatible":"serasi","consistent":"selaras",
 "vertical":"menegak","horizontal":"mendatar","curved":"melengkung","wavy":"beralun","zigzag":"zigzag",
 "smooth":"licin","slightly rough":"agak kasar","rough":"kasar","glossy":"berkilat","ribbed":"beralur",
 "cylindrical":"silinder","cylinder":"silinder","circular":"bulatan","circle":"bulatan",
