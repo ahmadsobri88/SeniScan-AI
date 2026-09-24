@@ -197,7 +197,7 @@ def _principle_observations(items):
     for item in _list(items):
         raw=item if isinstance(item,str) else item.get("observation",item.get("evidence","")) if isinstance(item,dict) else ""
         s=_bm(raw)
-        if len(s)<12 or re.search(r"\b(tiada|tidak kelihatan|tidak jelas|tidak cukup|no|none|not evident|not visible|cannot|unclear)\b",s,re.I):
+        if len(s)<24 or re.search(r"\b(tiada|tidak kelihatan|tidak jelas|tidak cukup|no|none|not evident|not visible|cannot|unclear)\b",s,re.I):
             continue
         out.append({"observation":s})
     return out
@@ -437,13 +437,19 @@ def build_art_result(obs):
         "references":REFERENCES
     }
 
-PRINCIPLE_PROMPT='''Examine the visual composition of this image for design principles only.
-Return a JSON object with these keys: focal_points, contrasts, repetitions, balance, unity, variety, harmony, movement.
-Each value is [] when unsupported, otherwise [{"observation":"short specific visual evidence in Bahasa Melayu"}].
-Inspect the whole image, including repeated objects and left/right arrangement, not only the largest object.
-For repetitions identify the repeated motif, count and location. For balance describe left/right visual weights. For contrasts identify the two visibly different features. For harmony identify similar compatible visual features. For movement identify an actual directional arrangement. For unity identify a shared motif. For variety name different shapes or sizes. For focal_points identify only one dominant focal object.
-Evidence MUST name visible shapes/objects/colors and their locations. Do not fill a category just because it is listed. Never invent objects. Plain backgrounds can have no principles.
-Use short Malay phrases; for example the vocabulary "pengulangan", "imbangan", "kontra", "harmoni", "pergerakan", "kesatuan", "kepelbagaian". Output JSON only.'''
+PRINCIPLE_PROMPT='''Teliti keseluruhan imej untuk Prinsip Rekaan sahaja, termasuk objek kecil dan susunan kiri-kanan.
+Pulangkan JSON sahaja dengan kunci focal_points, contrasts, repetitions, balance, unity, variety, harmony, movement.
+Setiap nilai ialah [] jika tiada bukti, atau [{"observation":"ayat Bahasa Melayu yang menyatakan objek, ciri visual dan lokasi khusus"}].
+repetitions: nyatakan motif yang berulang, bilangannya dan lokasi.
+balance: nyatakan objek di kiri dan kanan yang mengimbangkan berat visual.
+contrasts: nyatakan dua ciri yang benar-benar berkontra dan lokasi.
+harmony: nyatakan warna, rupa atau jalinan yang serasi pada objek tertentu.
+movement: nyatakan susunan atau garisan yang mengarahkan mata.
+unity: nyatakan ciri khusus yang menyatukan objek.
+variety: nyatakan rupa atau saiz yang berbeza.
+focal_points: satu objek paling dominan sahaja.
+Jangan mereka bukti. Elakkan ayat umum seperti "susunan simetri" tanpa menyebut objek. Imej kosong boleh mempunyai semua nilai [].
+WAJIB Bahasa Melayu: kiri, kanan, atas, bawah, bulatan, segi tiga, segi empat, merah, hijau, biru. Jangan gunakan perkataan Inggeris dalam observation.'''
 
 def query_visual(image,question,reasoning=False):
     if not CF_ACCOUNT_ID or not CF_API_TOKEN:
@@ -500,7 +506,7 @@ def query_visual(image,question,reasoning=False):
 def analyze(image):
     if not isinstance(image,str) or not image.startswith("data:image/") or ";base64," not in image:
         raise ValueError("Sila pilih fail gambar yang sah.")
-    obs=query_visual(image,PROMPT)
+    obs=query_visual(image,PROMPT,reasoning=True)
     result=build_art_result(obs)
     if not result["principles"]:
         try:
