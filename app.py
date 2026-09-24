@@ -1,4 +1,7 @@
 import os, json, re, urllib.request, urllib.error
+PWA_MANIFEST="{\"name\":\"SeniScan AI\",\"short_name\":\"SeniScan\",\"description\":\"Imbas, kenal, faham dan ingat Unsur Seni serta Prinsip Rekaan.\",\"lang\":\"ms\",\"start_url\":\"/\",\"scope\":\"/\",\"display\":\"standalone\",\"background_color\":\"#215bf1\",\"theme_color\":\"#4d20c8\",\"icons\":[{\"src\":\"/icon.svg\",\"sizes\":\"any\",\"type\":\"image/svg+xml\",\"purpose\":\"any maskable\"}]}"
+PWA_ICON="<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><defs><linearGradient id=\"g\" x2=\"1\" y2=\"1\"><stop stop-color=\"#4d20c8\"/><stop offset=\"1\" stop-color=\"#168de8\"/></linearGradient></defs><rect width=\"512\" height=\"512\" rx=\"112\" fill=\"url(#g)\"/><rect x=\"105\" y=\"164\" width=\"302\" height=\"218\" rx=\"58\" fill=\"#fff\"/><rect x=\"151\" y=\"131\" width=\"87\" height=\"44\" rx=\"15\" fill=\"#fff\"/><circle cx=\"256\" cy=\"272\" r=\"79\" fill=\"#6639dc\"/><circle cx=\"256\" cy=\"272\" r=\"48\" fill=\"#243267\"/><circle cx=\"274\" cy=\"253\" r=\"15\" fill=\"#fff\"/><circle cx=\"358\" cy=\"210\" r=\"16\" fill=\"#ffcf4d\"/></svg>"
+PWA_SW="const CACHE='seniscan-shell-v1';const SHELL=['/','/icon.svg','/manifest.webmanifest'];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)));self.skipWaiting()});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==self.location.origin||u.pathname.startsWith('/api/'))return;if(e.request.mode==='navigate'){e.respondWith(fetch(e.request).then(r=>{if(r.ok){const copy=r.clone();caches.open(CACHE).then(c=>c.put('/',copy))}return r}).catch(()=>caches.match('/')));return}e.respondWith(caches.match(e.request).then(cached=>cached||fetch(e.request)))});"
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PORT=int(os.environ.get("PORT","8000"))
@@ -6,7 +9,7 @@ MODEL="@cf/moondream/moondream3.1-9B-A2B"
 CF_ACCOUNT_ID=os.environ.get("CLOUDFLARE_ACCOUNT_ID","")
 CF_API_TOKEN=os.environ.get("CLOUDFLARE_API_TOKEN","")
 
-HTML="""<!doctype html><html lang="ms"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SeniScan AI</title><style>
+HTML="""<!doctype html><html lang="ms"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SeniScan AI</title><meta name="theme-color" content="#4d20c8"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="SeniScan"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="/icon.svg"><style>
 *{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;background:linear-gradient(180deg,#0b79f3 0%,#215bf1 48%,#173bbd 100%);color:#202442}.app{max-width:560px;margin:auto;min-height:100vh;background:radial-gradient(circle at 15% 14%,#49b4ff55 0 18%,transparent 19%),radial-gradient(circle at 86% 20%,#6e46ff55 0 20%,transparent 21%),linear-gradient(180deg,#0b79f3 0%,#215bf1 48%,#173bbd 100%);overflow:hidden}.hero{position:relative;overflow:hidden;padding:34px 22px 46px;background:linear-gradient(135deg,#4d20c8 0%,#6734e4 48%,#168de8 100%);color:#fff;text-align:center;border-radius:0 0 34px 34px;box-shadow:0 14px 35px #5b42bb35}
 .hero:before,.hero:after{content:"";position:absolute;border-radius:50%;background:#ffffff14}
 .hero:before{width:210px;height:210px;right:-90px;top:-95px}
@@ -61,7 +64,7 @@ let imageData="";const file=document.getElementById("file"),preview=document.get
 file.onchange=()=>{const f=file.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{imageData=r.result;preview.src=imageData;preview.style.display="block";go.style.display="block"};r.readAsDataURL(f)};
 const esc=s=>String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 go.onclick=async()=>{if(!imageData)return;statusEl.style.display="block";go.disabled=true;try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image:imageData})});const d=await r.json();if(!r.ok)throw Error(d.error||"Analisis gagal");obj.textContent=d.object_name||"";desc.textContent=d.object_description||"";conf.textContent="Keyakinan: "+(d.overall_confidence||"");els.innerHTML=(d.elements||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p>'+(x.types?.length?'<p><b>Jenis/Kategori:</b> '+esc(x.types.join(", "))+'</p>':"")+(x.examples?.length?'<p><b>Contoh:</b> '+esc(x.examples.join("; "))+'</p>':"")+(x.color_details?'<p><b>Analisis warna:</b> '+esc(x.color_details)+'</p>':"")+'<p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada unsur yang cukup jelas.</p>';prs.innerHTML=(d.principles||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p><p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada prinsip yang cukup jelas.</p>';tip.textContent=d.memory_tip||"";notes.innerHTML=(d.learning_notes||[]).map(x=>'<div class="item"><h3>'+esc(x.title)+'</h3><p>'+esc(x.note)+'</p></div>').join("")||'<p class="mut">Tiada nota tambahan.</p>';refs.innerHTML=(d.references||[]).map(x=>'<p>• '+esc(x)+'</p>').join("");sum.textContent=d.learning_summary||"";resultEl.style.display="block";resultEl.scrollIntoView({behavior:"smooth"})}catch(e){alert(e.message)}finally{statusEl.style.display="none";go.disabled=false}};
-</script></body></html>"""
+</script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}))}</script></body></html>"""
 
 PROMPT="""Anda ialah pemerhati visual untuk aplikasi Pendidikan Seni Visual Malaysia.
 Tugas anda ialah melihat imej dan memulangkan JSON SAHAJA. Jangan tulis markdown.
@@ -468,6 +471,10 @@ class H(BaseHTTPRequestHandler):
         b=b.encode();self.send_response(n);self.send_header("Content-Type",t);self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
     def do_GET(self):
         if self.path in ("/","/index.html"):self.send(200,HTML,"text/html; charset=utf-8")
+        elif self.path=="/manifest.webmanifest":self.send(200,PWA_MANIFEST,"application/manifest+json; charset=utf-8")
+        elif self.path=="/icon.svg":self.send(200,PWA_ICON,"image/svg+xml; charset=utf-8")
+        elif self.path=="/sw.js":
+            self.send_response(200);b=PWA_SW.encode();self.send_header("Content-Type","application/javascript; charset=utf-8");self.send_header("Cache-Control","no-cache");self.send_header("Service-Worker-Allowed","/");self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
         elif self.path=="/health":self.send(200,{"ok":True,"provider":"cloudflare","model":MODEL,"cloudflare_configured":bool(CF_ACCOUNT_ID and CF_API_TOKEN)})
         else:self.send(404,{"error":"Tidak dijumpai"})
     def do_POST(self):
