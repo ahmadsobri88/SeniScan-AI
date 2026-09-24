@@ -97,7 +97,9 @@ Struktur JSON WAJIB:
     "repetitions":[{"observation":""}],
     "balance":[{"observation":""}],
     "unity":[{"observation":""}],
-    "variety":[{"observation":""}]
+    "variety":[{"observation":""}],
+    "harmony":[{"observation":""}],
+    "movement":[{"observation":""}]
   }
 }
 
@@ -112,7 +114,12 @@ Panduan:
 - focal_points: hanya SATU tumpuan utama jika benar-benar dominan.
 - contrasts: nyatakan perbezaan visual yang jelas antara dua unsur.
 - repetitions: hanya pengulangan visual yang nyata.
-- balance, unity, variety: isi hanya jika ada bukti visual yang jelas.
+- balance: huraikan agihan berat visual dan lokasi; jangan teka simetri.
+- unity: nyatakan unsur khusus yang menyatukan imej.
+- variety: nyatakan dua atau lebih variasi visual dan lokasi.
+- harmony: hanya jika warna, rupa atau jalinan kelihatan serasi; nyatakan bukti khusus.
+- movement: hanya jika garisan atau susunan unsur jelas mengarahkan mata.
+- Setiap observation mesti menyebut bukti visual khusus pada imej. Jika tidak cukup bukti, gunakan [].
 
 Contoh bunga: ranting melengkung -> lines; daun/kelopak organik -> shapes; kelompok bunga 3D -> forms; permukaan daun/kelopak -> textures; jingga/hijau/putih -> colors; bunga bertindih -> space; cahaya/bayang pada kelopak -> values.
 Contoh botol: kontur melengkung -> lines; grafik label -> shapes; badan silinder -> forms; permukaan licin -> textures; warna label -> colors.
@@ -245,7 +252,7 @@ def build_art_result(obs):
     vis["textures"]=_valid_pairs(vis.get("textures"),"texture")
     vis["space"]=_valid_obs(vis.get("space"),"space")
     vis["values"]=_valid_obs(vis.get("values"),"value")
-    for k in ("focal_points","contrasts","repetitions","balance","unity","variety"):
+    for k in ("focal_points","contrasts","repetitions","balance","unity","variety","harmony","movement"):
         vis[k]=[{"observation":_bm(x.get("observation"))} for x in _list(vis.get(k)) if isinstance(x,dict) and _text(x.get("observation"))]
     # Prinsip rekaan perlu lebih ketat: penegasan hanya satu fokus dominan, pengulangan mesti nyata,
     # dan kesatuan/kepelbagaian tidak dipaparkan daripada istilah umum semata-mata.
@@ -255,6 +262,8 @@ def build_art_result(obs):
     vis["balance"]=[x for x in vis["balance"] if re.search(r"seimbang|imbang|simetri|stabil|kiri.*kanan|kanan.*kiri",x["observation"],re.I)]
     vis["unity"]=[x for x in vis["unity"] if re.search(r"kesatuan|bersatu|serasi|selaras|harmoni|cohes",x["observation"],re.I)]
     vis["variety"]=[x for x in vis["variety"] if re.search(r"pelbagai|kepelbagaian|variasi|berbeza|variety",x["observation"],re.I)]
+    vis["harmony"]=[x for x in vis["harmony"] if re.search(r"harmoni|serasi|selaras|sepadan",x["observation"],re.I)]
+    vis["movement"]=[x for x in vis["movement"] if re.search(r"arah|gerak|menghala|mengarah|laluan|diagonal|melengkung",x["observation"],re.I)]
     vis["colors"]=[{"name":_bm(x.get("name")),"location":_bm(x.get("location"))} for x in _list(vis.get("colors")) if isinstance(x,dict) and _text(x.get("name")) and _text(x.get("location"))]
     # Normalisasi nama warna dan buang pendua.
     color_syn={"oren":"jingga","orange":"jingga","pink":"merah jambu","grey":"kelabu","gray":"kelabu","purple":"ungu","brown":"coklat","navy":"biru tua","lime":"hijau muda"}
@@ -317,12 +326,8 @@ def build_art_result(obs):
         vis["space"]=[{"observation":"Susunan bahagian objek yang saling berada di hadapan dan belakang menghasilkan kesan ruang dan kedalaman."}]
     if not vis["values"] and re.search(r"terang.*gelap|gelap.*terang|cahaya|bayang|ton|berkilat",dl):
         vis["values"]=[{"observation":"Perbezaan cahaya dan bayang pada permukaan objek menghasilkan nilai terang dan gelap."}]
-    if not vis["balance"] and re.search(r"tidak simetri|simetri|komposisi",dl):
-        vis["balance"]=[{"observation":"Susunan komposisi menunjukkan imbangan visual melalui pengagihan unsur pada keseluruhan gubahan."}]
-    if not vis["contrasts"]:
-        found_cols=[x.get("name","") for x in vis["colors"] if isinstance(x,dict)]
-        if len(set(found_cols)) >= 2:
-            vis["contrasts"]=[{"observation":"Perbezaan warna yang ketara antara bahagian objek menghasilkan kontra visual."}]
+    # Jangan cipta imbangan daripada huraian umum komposisi.
+    # Dua warna sahaja tidak membuktikan kontra yang ketara.
     elements=[]
     principles=[]
 
@@ -373,19 +378,16 @@ def build_art_result(obs):
     def add_principle(name, items, explanation):
         ev=_join_obs(items)
         if ev:
-            principles.append({"name":name,"confidence":"Jelas","explanation":explanation,"evidence":ev})
+            principles.append({"name":name,"confidence":"Berdasarkan pemerhatian AI","explanation":explanation+" Bukti visual: "+ev,"evidence":ev})
 
     add_principle("Penegasan",vis.get("focal_points"),"Penegasan berlaku apabila satu bahagian menjadi tumpuan utama.")
     add_principle("Kontra",vis.get("contrasts"),"Kontra terhasil melalui perbezaan yang ketara seperti warna, nilai, saiz atau rupa.")
-    add_principle("Irama & Pergerakan",vis.get("repetitions"),"Pengulangan unsur visual boleh mewujudkan irama dan mengarahkan pergerakan mata.")
+    add_principle("Irama & Pergerakan",vis.get("repetitions")+vis.get("movement"),"Pengulangan unsur visual boleh mewujudkan irama dan mengarahkan pergerakan mata.")
     add_principle("Imbangan",vis.get("balance"),"Imbangan mewujudkan kestabilan visual melalui susunan unsur.")
     add_principle("Kesatuan",vis.get("unity"),"Kesatuan berlaku apabila unsur visual kelihatan saling berkaitan sebagai satu keseluruhan.")
     add_principle("Kepelbagaian",vis.get("variety"),"Kepelbagaian wujud melalui variasi unsur seperti warna, rupa, bentuk atau jalinan.")
 
-    # Harmoni: derive conservatively only when unity observation explicitly mentions serasi/harmoni.
-    unity_ev=_join_obs(vis.get("unity"))
-    if unity_ev and re.search(r"harmoni|serasi|selaras", unity_ev, re.I):
-        principles.append({"name":"Harmoni","confidence":"Berkemungkinan","explanation":"Harmoni terhasil apabila unsur visual kelihatan serasi dan saling melengkapi.","evidence":unity_ev})
+    add_principle("Harmoni",vis.get("harmony"),"Harmoni terhasil apabila unsur visual kelihatan serasi dan saling melengkapi.")
 
     names=[x["name"] for x in elements]
     pnames=[x["name"] for x in principles]
