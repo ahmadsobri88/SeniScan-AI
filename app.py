@@ -66,66 +66,23 @@ const esc=s=>String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 go.onclick=async()=>{if(!imageData)return;statusEl.style.display="block";go.disabled=true;try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image:imageData})});const d=await r.json();if(!r.ok)throw Error(d.error||"Analisis gagal");obj.textContent=d.object_name||"";desc.textContent=d.object_description||"";conf.textContent="Keyakinan: "+(d.overall_confidence||"");els.innerHTML=(d.elements||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p>'+(x.types?.length?'<p><b>Jenis/Kategori:</b> '+esc(x.types.join(", "))+'</p>':"")+(x.examples?.length?'<p><b>Contoh:</b> '+esc(x.examples.join("; "))+'</p>':"")+(x.color_details?'<p><b>Analisis warna:</b> '+esc(x.color_details)+'</p>':"")+'<p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada unsur yang cukup jelas.</p>';prs.innerHTML=(d.principles||[]).map(x=>'<div class="item"><h3>'+esc(x.name)+'</h3><span class="tag">'+esc(x.confidence)+'</span><p>'+esc(x.explanation)+'</p><p><b>👀 Bukti:</b> '+esc(x.evidence)+'</p></div>').join("")||'<p class="mut">Tiada prinsip yang cukup jelas.</p>';tip.textContent=d.memory_tip||"";notes.innerHTML=(d.learning_notes||[]).map(x=>'<div class="item"><h3>'+esc(x.title)+'</h3><p>'+esc(x.note)+'</p></div>').join("")||'<p class="mut">Tiada nota tambahan.</p>';refs.innerHTML=(d.references||[]).map(x=>'<p>• '+esc(x)+'</p>').join("");sum.textContent=d.learning_summary||"";resultEl.style.display="block";resultEl.scrollIntoView({behavior:"smooth"})}catch(e){alert(e.message)}finally{statusEl.style.display="none";go.disabled=false}};
 </script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}))}</script></body></html>"""
 
-PROMPT="""Anda ialah pemerhati visual untuk aplikasi Pendidikan Seni Visual Malaysia.
-Tugas anda ialah melihat imej dan memulangkan JSON SAHAJA. Jangan tulis markdown.
-
-PENTING: Periksa SETIAP kategori visual secara berasingan. Jangan kosongkan kategori hanya kerana objek bukan karya seni. Objek harian, tumbuhan, pakaian dan peralatan juga mempunyai unsur visual.
-
-Jawab SEMUA nilai JSON dalam Bahasa Melayu sepenuhnya. Jangan campur perkataan Inggeris dalam object_description, type, location atau observation.
-
-PERATURAN WARNA WAJIB:
-- Periksa warna secara berasingan selepas kategori lain.
-- Jika sekurang-kurangnya satu warna dapat dilihat dengan jelas pada objek utama, "colors" TIDAK BOLEH [].
-- Senaraikan 1 hingga 5 warna paling jelas pada objek utama berserta lokasi khusus dalam Bahasa Melayu.
-- Jangan abaikan warna hanya kerana imej ialah objek harian, bunga, tumbuhan atau produk.
-
-Struktur JSON WAJIB:
-{
-  "object_name":"",
-  "object_description":"",
-  "overall_confidence":"Jelas",
-  "visual":{
-    "lines":[{"type":"","location":""}],
-    "shapes":[{"type":"","location":""}],
-    "forms":[{"type":"","location":""}],
-    "textures":[{"type":"","location":""}],
-    "colors":[{"name":"","location":""}],
-    "space":[{"observation":""}],
-    "values":[{"observation":""}],
-    "focal_points":[{"observation":""}],
-    "contrasts":[{"observation":""}],
-    "repetitions":[{"observation":""}],
-    "balance":[{"observation":""}],
-    "unity":[{"observation":""}],
-    "variety":[{"observation":""}],
-    "harmony":[{"observation":""}],
-    "movement":[{"observation":""}]
-  }
-}
-
-Panduan:
-- lines: garisan menegak, mendatar, melengkung, beralun, diagonal atau zigzag yang benar-benar kelihatan.
-- shapes: rupa 2D geometri atau organik yang benar-benar kelihatan. Daun dan kelopak boleh menjadi rupa organik.
-- forms: bentuk 3D seperti silinder, sfera, kubus, kon atau bentuk organik 3D.
-- textures: sifat permukaan yang BOLEH DILIHAT seperti licin, kasar, berkilat, berbulu atau beralur.
-- colors: WAJIB senaraikan 1–5 warna utama yang jelas kelihatan pada objek utama. Gunakan nama warna Bahasa Melayu seperti merah, jingga, kuning, hijau, biru, ungu, putih, hitam, kelabu, coklat atau merah jambu.
-- space: hanya jika kelihatan pertindihan, hadapan-belakang, jarak, ruang positif/negatif atau kedalaman.
-- values: hanya jika kelihatan terang-gelap, ton, cahaya atau bayang.
-- focal_points: hanya SATU tumpuan utama jika benar-benar dominan.
-- contrasts: nyatakan perbezaan visual yang jelas antara dua unsur.
-- repetitions: hanya pengulangan visual yang nyata.
-- balance: huraikan agihan berat visual dan lokasi; jangan teka simetri.
-- unity: nyatakan unsur khusus yang menyatukan imej.
-- variety: nyatakan dua atau lebih variasi visual dan lokasi.
-- harmony: hanya jika warna, rupa atau jalinan kelihatan serasi; nyatakan bukti khusus.
-- movement: hanya jika garisan atau susunan unsur jelas mengarahkan mata.
-- Setiap observation mesti menyebut bukti visual khusus pada imej. Jika tidak cukup bukti, gunakan [].
-
-Contoh bunga: ranting melengkung -> lines; daun/kelopak organik -> shapes; kelompok bunga 3D -> forms; permukaan daun/kelopak -> textures; jingga/hijau/putih -> colors; bunga bertindih -> space; cahaya/bayang pada kelopak -> values.
-Contoh botol: kontur melengkung -> lines; grafik label -> shapes; badan silinder -> forms; permukaan licin -> textures; warna label -> colors.
-
-Jangan gunakan fungsi, tujuan, jenama, kandungan atau pemasaran produk sebagai unsur seni. Jika bukti kategori memang tidak kelihatan, gunakan [].
+PROMPT="""Lihat imej ini. Senaraikan objek dan unsur seni yang benar-benar kelihatan.
+Pulangkan JSON sahaja, dengan SEMUA nilai teks dalam Bahasa Melayu:
+{"object_name":"nama ringkas objek atau gubahan", "object_description":"penerangan ringkas imej", "overall_confidence":"Berdasarkan pemerhatian AI", "visual":{"lines":[],"shapes":[],"forms":[],"textures":[],"colors":[],"space":[],"values":[]}}
+Isi setiap senarai seperti berikut, maksimum 4 item setiap kategori:
+lines, shapes, forms, textures: {"type":"jenis", "location":"objek dan lokasi"}.
+colors: {"name":"nama warna", "location":"objek dan lokasi"}.
+space, values: {"observation":"bukti khusus pada imej"}.
+Garisan: menegak, mendatar, diagonal atau melengkung.
+Rupa ialah kawasan 2D: bulatan, segi tiga, segi empat atau organik.
+Bentuk ialah isipadu 3D: hanya jika objek mempunyai kedalaman yang jelas. Segi empat rata BUKAN kubus. Bulatan rata BUKAN sfera. Imej geometri rata boleh mempunyai forms kosong.
+Jalinan: hanya sifat permukaan yang kelihatan, jangan anggap semua objek licin atau kasar.
+Warna: senaraikan semua warna utama yang jelas berserta lokasinya.
+Ruang: hanya pertindihan atau kedalaman sebenar. Nilai: hanya bukti ton terang-gelap.
+Jika tidak kelihatan, gunakan []. Jangan mereka ciri. Jangan analisis Prinsip Rekaan dalam langkah ini.
+Gunakan nama Melayu: kiri, kanan, atas, bawah, tengah, merah, hijau, biru, bulatan, segi tiga, segi empat sama.
 """
+
 def _list(v):
     return v if isinstance(v,list) else []
 
@@ -151,7 +108,7 @@ def _join_pairs(items, akey, bkey):
     return "; ".join(vals)
 
 BM_MAP={
-"left":"kiri","right":"kanan","edges":"tepi","edge":"tepi","corners":"penjuru","corner":"penjuru","central":"tengah","position":"kedudukan","positions":"kedudukan","row":"baris","rows":"baris","across":"merentasi","along":"sepanjang","around":"di sekeliling","between":"di antara","below":"di bawah","above":"di atas","at":"di","on":"pada","in":"di dalam","the":"","is":"ialah","are":"ialah","of":"","and":"dan","with":"dengan",
+"straight":"lurus","versus":"berbanding","vs":"berbanding","left":"kiri","right":"kanan","edges":"tepi","edge":"tepi","corners":"penjuru","corner":"penjuru","central":"tengah","position":"kedudukan","positions":"kedudukan","row":"baris","rows":"baris","across":"merentasi","along":"sepanjang","around":"di sekeliling","between":"di antara","below":"di bawah","above":"di atas","at":"di","on":"pada","in":"di dalam","the":"","is":"ialah","are":"ialah","of":"","and":"dan","with":"dengan",
 "visual weight":"berat visual","focal point":"tumpuan utama","focal":"tumpuan","contrast":"kontra","contrasting":"berkontra","colors":"warna","colours":"warna","color":"warna","colour":"warna","similar":"serupa","same":"sama","sizes":"saiz","size":"saiz","pattern":"corak","patterns":"corak","elements":"unsur","element":"unsur","arranged":"disusun","arrangement":"susunan","horizontal row":"baris mendatar","evenly spaced":"berjarak sekata","spaced":"berjarak","spacing":"jarak","small":"kecil","larger":"lebih besar","smaller":"lebih kecil","large":"besar","two":"dua","three":"tiga","four":"empat","five":"lima","no":"tiada","none":"tiada","not visible":"tidak kelihatan","not evident":"tidak kelihatan",
 "object":"objek","objects":"objek","triangle":"segi tiga","triangles":"segi tiga","square":"segi empat sama","squares":"segi empat sama","circles":"bulatan","rectangles":"segi empat tepat",
 "repetition":"pengulangan","repeated":"berulang","repeating":"berulang","repeat":"berulang","rhythm":"irama","movement":"pergerakan","direction":"arah","directs":"mengarahkan","leading":"mengarah",
@@ -506,11 +463,11 @@ def query_visual(image,question,reasoning=False):
 def analyze(image):
     if not isinstance(image,str) or not image.startswith("data:image/") or ";base64," not in image:
         raise ValueError("Sila pilih fail gambar yang sah.")
-    obs=query_visual(image,PROMPT,reasoning=True)
+    obs=query_visual(image,PROMPT,reasoning=False)
     result=build_art_result(obs)
     if not result["principles"]:
         try:
-            focused=query_visual(image,PRINCIPLE_PROMPT,reasoning=True)
+            focused=query_visual(image,PRINCIPLE_PROMPT,reasoning=False)
             visual=focused.get("visual",focused)
             if isinstance(visual,dict):
                 combined=dict(obs.get("visual") or {})
@@ -521,6 +478,8 @@ def analyze(image):
         except (RuntimeError,ValueError,urllib.error.URLError,TimeoutError) as e:
             print("[SeniScan] Focused principle check unavailable: "+type(e).__name__,flush=True)
             result["learning_summary"]+=" Semakan tambahan Prinsip Rekaan tidak dapat diselesaikan. Sila cuba semula."
+    if not result["elements"] and not result["principles"]:
+        result["overall_confidence"]="Tidak cukup jelas"
     return result
 
 class H(BaseHTTPRequestHandler):
